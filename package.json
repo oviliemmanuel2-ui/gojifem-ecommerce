@@ -1,0 +1,21 @@
+{
+  "name": "gojifem-ecommerce",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GOJIFEM - Nigeria Multi-Vendor E-Commerce Marketplace",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run --workspaces --if-present build",
+    "lint": "npm run --workspaces --if-present lint",
+    "test": "npm run --workspaces --if-present test",
+    "db:generate": "npm run --workspace=@gojifem/database generate",
+    "dev:api": "npm run --workspace=@gojifem/api start:dev",
+    "dev:web": "npm run --workspace=@gojifem/web dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

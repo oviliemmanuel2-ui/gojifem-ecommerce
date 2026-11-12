@@ -1,0 +1,653 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------
+// ENUMS
+// ----------------------------------------------------
+enum UserAccountStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum VendorStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_INFORMATION
+  APPROVED
+  SUSPENDED
+  REJECTED
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  PAUSED
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  PARTIALLY_SHIPPED
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  PARTIALLY_REFUNDED
+  REFUNDED
+  DISPUTED
+}
+
+enum VendorOrderStatus {
+  AWAITING_VENDOR
+  ACCEPTED
+  PACKING
+  READY_FOR_PICKUP
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  REVERSED
+}
+
+enum PaymentProvider {
+  PAYSTACK
+  FLUTTERWAVE
+}
+
+enum LedgerAccountType {
+  PROVIDER_CLEARING
+  CUSTOMER_COLLECTIONS
+  PLATFORM_COMMISSION
+  VENDOR_PAYABLE
+  DELIVERY_PAYABLE
+  REFUND_LIABILITY
+  PAYOUT_CLEARING
+  PROVIDER_FEES
+}
+
+enum LedgerEntryDirection {
+  DEBIT
+  CREDIT
+}
+
+enum PayoutStatus {
+  PENDING_APPROVAL
+  APPROVED
+  PROCESSING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ----------------------------------------------------
+// IDENTITY & USERS
+// ----------------------------------------------------
+model User {
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  phone              String?            @unique
+  passwordHash       String
+  accountStatus      UserAccountStatus  @default(ACTIVE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  customerProfile    CustomerProfile?
+  addresses          Address[]
+  userRoles          UserRole[]
+  vendorMemberships  VendorMembership[]
+  ownedVendors       Vendor[]           @relation("VendorOwner")
+  orders             Order[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String     @id @default(uuid())
+  code        String     @unique
+  name        String
+  description String?
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  vendorId  String?  // Scoped to a specific vendor if applicable
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  vendor Vendor? @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, vendorId])
+  @@map("user_roles")
+}
+
+model CustomerProfile {
+  id                        String   @id @default(uuid())
+  userId                    String   @unique
+  firstName                 String
+  lastName                  String
+  avatarUrl                 String?
+  defaultBillingAddressId   String?
+  defaultShippingAddressId  String?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("customer_profiles")
+}
+
+model Address {
+  id             String   @id @default(uuid())
+  userId         String
+  firstName      String
+  lastName       String
+  phone          String
+  countryCode    String   // ISO 2-letter (e.g., NG, US, GB)
+  stateOrRegion  String
+  city           String
+  streetAddress  String
+  apartmentSuite String?
+  postalCode     String?
+  landmark       String?
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+// ----------------------------------------------------
+// VENDORS & SETTLEMENT
+// ----------------------------------------------------
+model Vendor {
+  id                 String             @id @default(uuid())
+  legalName          String
+  displayName        String
+  slug               String             @unique
+  ownerUserId        String
+  status             VendorStatus       @default(DRAFT)
+  commissionRateBps  Int                @default(1000) // 1000 bps = 10.00%
+  description        String?
+  logoUrl            String?
+  bannerUrl          String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  owner              User               @relation("VendorOwner", fields: [ownerUserId], references: [id])
+  memberships        VendorMembership[]
+  verifications      VendorVerification[]
+  settlementAccounts VendorSettlementAccount[]
+  products           Product[]
+  vendorOrders       VendorOrder[]
+  userRoles          UserRole[]
+  payouts            Payout[]
+
+  @@map("vendors")
+}
+
+model VendorMembership {
+  id        String   @id @default(uuid())
+  vendorId  String
+  userId    String
+  role      String   @default("STAFF") // OWNER, MANAGER, STAFF
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, userId])
+  @@map("vendor_memberships")
+}
+
+model VendorVerification {
+  id              String             @id @default(uuid())
+  vendorId        String
+  evidenceType    String             // CAC_CERTIFICATE, NATIONAL_ID, TAX_ID, UTILITY_BILL
+  documentUrl     String
+  status          VerificationStatus @default(PENDING)
+  reviewerUserId  String?
+  reviewNotes     String?
+  verifiedAt      DateTime?
+  createdAt       DateTime           @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@map("vendor_verifications")
+}
+
+model VendorSettlementAccount {
+  id                  String   @id @default(uuid())
+  vendorId            String
+  bankCode            String   // NIBSS / Paystack Bank Code (e.g., 058 for GTBank)
+  bankName            String
+  accountNumberMasked String   // e.g. ******1234
+  accountName         String
+  recipientCode       String?  // Paystack / Flutterwave subaccount or transfer recipient code
+  isDefault           Boolean  @default(true)
+  isVerified          Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  vendor  Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  payouts Payout[]
+
+  @@map("vendor_settlement_accounts")
+}
+
+// ----------------------------------------------------
+// CATALOG, PRODUCTS & INVENTORY
+// ----------------------------------------------------
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  parentId  String?
+  sortOrder Int        @default(0)
+  iconUrl   String?
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String         @id @default(uuid())
+  vendorId    String
+  categoryId  String
+  title       String
+  slug        String         @unique
+  description String
+  status      ProductStatus  @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  vendor    Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  category  Category         @relation(fields: [categoryId], references: [id])
+  variants  ProductVariant[]
+  media     ProductMedia[]
+
+  @@index([vendorId, status])
+  @@index([categoryId, status])
+  @@map("products")
+}
+
+model ProductVariant {
+  id                  String          @id @default(uuid())
+  productId           String
+  sku                 String          @unique
+  title               String          // e.g., "Size: M, Color: Blue"
+  priceMinor          BigInt          // Price in integer minor units (kobo)
+  currency            String          @default("NGN")
+  compareAtPriceMinor BigInt?
+  isActive            Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventory     InventoryItem?
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+
+  @@map("product_variants")
+}
+
+model ProductMedia {
+  id        String   @id @default(uuid())
+  productId String
+  url       String
+  sortOrder Int      @default(0)
+  altText   String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_media")
+}
+
+model InventoryItem {
+  id          String   @id @default(uuid())
+  variantId   String   @unique
+  onHand      Int      @default(0)
+  reserved    Int      @default(0) // Atomic reservation during checkout
+  safetyStock Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_items")
+}
+
+// ----------------------------------------------------
+// SERVICEABLE DESTINATIONS (SHIPPING GATE)
+// ----------------------------------------------------
+model ServiceableDestination {
+  id                String   @id @default(uuid())
+  countryCode       String   @unique // ISO 2-letter, e.g. "NG", "GH", "GB"
+  countryName       String
+  isEnabled         Boolean  @default(true)
+  supportedCarriers String[] // e.g. ["GIGL", "DHL", "FEDEX"]
+  estimatedDaysMin  Int      @default(1)
+  estimatedDaysMax  Int      @default(5)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("serviceable_destinations")
+}
+
+// ----------------------------------------------------
+// CART
+// ----------------------------------------------------
+model Cart {
+  id         String     @id @default(uuid())
+  userId     String?    // Nullable for guest shoppers
+  guestToken String?    @unique
+  currency   String     @default("NGN")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  variantId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+  @@map("cart_items")
+}
+
+// ----------------------------------------------------
+// ORDERS & MULTI-VENDOR FULFILLMENT
+// ----------------------------------------------------
+model Order {
+  id                      String        @id @default(uuid())
+  orderNumber             String        @unique // e.g., GOJI-2026-0001
+  customerUserId          String
+  status                  OrderStatus   @default(PENDING_PAYMENT)
+  presentmentCurrency     String        @default("NGN")
+  settlementCurrency      String        @default("NGN")
+  billingCountryCode      String
+  shippingAddressSnapshot Json          // Full immutable AddressSnapshot at purchase
+  subtotalMinor           BigInt
+  shippingFeeMinor        BigInt
+  discountMinor           BigInt        @default(0)
+  totalMinor              BigInt
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  customer     User          @relation(fields: [customerUserId], references: [id])
+  vendorOrders VendorOrder[]
+  payments     Payment[]
+
+  @@map("orders")
+}
+
+model VendorOrder {
+  id                   String            @id @default(uuid())
+  orderId              String
+  vendorId             String
+  vendorOrderNumber    String            @unique // e.g., GOJI-2026-0001-V1
+  status               VendorOrderStatus @default(AWAITING_VENDOR)
+  subtotalMinor        BigInt
+  shippingFeeMinor     BigInt
+  commissionBps        Int
+  commissionAmountMinor BigInt
+  vendorPayableMinor   BigInt
+  trackingNumber       String?
+  carrier              String?
+  shippedAt            DateTime?
+  deliveredAt          DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  vendor    Vendor      @relation(fields: [vendorId], references: [id])
+  items     OrderItem[]
+  shipments Shipment[]
+
+  @@map("vendor_orders")
+}
+
+model OrderItem {
+  id                    String   @id @default(uuid())
+  vendorOrderId         String
+  variantId             String
+  sku                   String
+  title                 String
+  variantSnapshot       Json
+  unitPriceMinor        BigInt
+  quantity              Int
+  subtotalMinor         BigInt
+  commissionAmountMinor BigInt
+
+  vendorOrder VendorOrder    @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+// ----------------------------------------------------
+// PAYMENTS & AUDIT
+// ----------------------------------------------------
+model Payment {
+  id                   String          @id @default(uuid())
+  orderId              String
+  paymentReference     String          @unique
+  provider             PaymentProvider
+  status               PaymentStatus   @default(CREATED)
+  amountMinor          BigInt
+  currency             String          @default("NGN")
+  paymentMethod        String?         // card, bank_transfer, ussd
+  isInternationalCard  Boolean         @default(false)
+  cardCountry          String?         // 2-letter country code
+  paidAt               DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  order  Order          @relation(fields: [orderId], references: [id])
+  events PaymentEvent[]
+
+  @@map("payments")
+}
+
+model PaymentEvent {
+  id              String   @id @default(uuid())
+  paymentId       String
+  provider        PaymentProvider
+  eventType       String
+  providerEventId String?  @unique
+  rawPayload      Json
+  createdAt       DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("payment_events")
+}
+
+model Shipment {
+  id                   String         @id @default(uuid())
+  vendorOrderId        String
+  trackingCode         String         @unique
+  carrier              String
+  status               String         @default("LABEL_CREATED")
+  estimatedDeliveryAt  DateTime?
+  actualDeliveryAt     DateTime?
+  trackingHistory      Json?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  vendorOrder VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
+
+  @@map("shipments")
+}
+
+// ----------------------------------------------------
+// DOUBLE-ENTRY FINANCIAL LEDGER
+// ----------------------------------------------------
+model LedgerAccount {
+  id           String            @id @default(uuid())
+  code         String            @unique // e.g. "1010-PAYSTACK-CLEARING", "2010-VENDOR-PAYABLE"
+  name         String
+  type         LedgerAccountType
+  currency     String            @default("NGN")
+  balanceMinor BigInt            @default(0)
+  createdAt    DateTime          @default(now())
+
+  entries LedgerEntry[]
+
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id              String        @id @default(uuid())
+  reference       String        @unique // e.g. "TX-ORDER-GOJI-0001"
+  description     String
+  transactionDate DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+
+  entries LedgerEntry[]
+
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id            String               @id @default(uuid())
+  transactionId String
+  accountId     String
+  direction     LedgerEntryDirection
+  amountMinor   BigInt
+  currency      String               @default("NGN")
+
+  transaction LedgerTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  account     LedgerAccount     @relation(fields: [accountId], references: [id])
+
+  @@map("ledger_entries")
+}
+
+model Payout {
+  id                  String                  @id @default(uuid())
+  vendorId            String
+  settlementAccountId String
+  batchReference      String                  @unique
+  amountMinor         BigInt
+  currency            String                  @default("NGN")
+  status              PayoutStatus            @default(PENDING_APPROVAL)
+  providerTransferId  String?
+  failureReason       String?
+  initiatedAt         DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  vendor            Vendor                  @relation(fields: [vendorId], references: [id])
+  settlementAccount VendorSettlementAccount @relation(fields: [settlementAccountId], references: [id])
+
+  @@map("payouts")
+}
+
+// ----------------------------------------------------
+// TRANSACTIONAL OUTBOX, IDEMPOTENCY & AUDIT
+// ----------------------------------------------------
+model OutboxEvent {
+  id            String       @id @default(uuid())
+  eventType     String       // e.g. "ORDER_PAID", "SHIPMENT_DISPATCHED"
+  aggregateType String       // e.g. "ORDER", "VENDOR_ORDER"
+  aggregateId   String
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  retryCount    Int          @default(0)
+  createdAt     DateTime     @default(now())
+  processedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String   // e.g., "APPROVE_VENDOR", "MODIFY_COMMISSION"
+  entityName  String   // e.g., "Vendor", "Product"
+  entityId    String
+  beforeState Json?
+  afterState  Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model IdempotencyKey {
+  id                 String    @id @default(uuid())
+  key                String    @unique
+  scope              String    // e.g. "CHECKOUT_CREATE", "PAYOUT_TRANSFER"
+  requestHash        String
+  responseStatusCode Int?
+  responseBody       Json?
+  createdAt          DateTime  @default(now())
+  expiresAt          DateTime
+
+  @@map("idempotency_keys")
+}
