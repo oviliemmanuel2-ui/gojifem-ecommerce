@@ -1,17 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
+import Link from 'next/link';
 import { 
-  ShoppingBag, 
-  Search, 
   ShieldCheck, 
   Globe2, 
   Truck, 
   CreditCard, 
   ArrowRight,
-  Store,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
+import { Navbar } from '../components/Navbar';
+import { ProductCard } from '../components/ProductCard';
+import { DeliveryChecker } from '../components/DeliveryChecker';
+import { SAMPLE_PRODUCTS } from '../data/sampleProducts';
 
 const CATEGORIES = [
   { name: 'Fashion & Apparel', count: '1,240+ Products', icon: '👗' },
@@ -23,104 +26,37 @@ const CATEGORIES = [
 ];
 
 export default function HomePage() {
-  const [currency, setCurrency] = useState<'NGN' | 'USD' | 'GBP' | 'EUR'>('NGN');
-
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Top Banner */}
-      <div className="bg-emerald-900 text-emerald-100 text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2">
-        <Globe2 className="w-3.5 h-3.5 text-emerald-400" />
-        <span>
-          <strong>Worldwide Card Acceptance:</strong> Diaspora & international customers can pay with foreign cards for verified deliveries in Nigeria and enabled zones.
-        </span>
-      </div>
-
-      {/* Main Navigation */}
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
-              G
-            </div>
-            <div>
-              <span className="font-extrabold text-xl tracking-tight text-slate-900">GOJIFEM</span>
-              <span className="text-[10px] block font-semibold text-emerald-600 uppercase tracking-wider -mt-1">
-                Marketplace
-              </span>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-lg relative">
-            <input
-              type="text"
-              placeholder="Search products, brands, or verified Nigerian vendors..."
-              className="w-full pl-10 pr-4 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          </div>
-
-          {/* Right Controls */}
-          <div className="flex items-center gap-4">
-            {/* Currency Selector */}
-            <div className="flex items-center border rounded-lg px-2 py-1 bg-slate-50 text-xs font-semibold text-slate-700">
-              <span className="text-slate-400 mr-1.5">Currency:</span>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value as any)}
-                className="bg-transparent focus:outline-none cursor-pointer"
-              >
-                <option value="NGN">NGN (₦)</option>
-                <option value="USD">USD ($)</option>
-                <option value="GBP">GBP (£)</option>
-                <option value="EUR">EUR (€)</option>
-              </select>
-            </div>
-
-            <a
-              href="/vendor/apply"
-              className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-emerald-700 border px-3 py-1.5 rounded-lg"
-            >
-              <Store className="w-4 h-4 text-emerald-600" />
-              <span>Sell on GOJIFEM</span>
-            </a>
-
-            <button className="flex items-center gap-2 bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-slate-800">
-              <ShoppingBag className="w-4 h-4" />
-              <span>Cart</span>
-              <span className="bg-emerald-500 text-white rounded-full px-1.5 py-0.2 text-[10px]">0</span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="flex flex-col min-h-screen bg-slate-50">
+      <Navbar />
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-emerald-50/60 to-white py-16 sm:py-24 border-b">
+      <section className="bg-gradient-to-b from-emerald-50/70 via-white to-slate-50 py-16 sm:py-20 border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 text-xs px-3 py-1 rounded-full font-medium mb-6">
+          <div className="inline-flex items-center gap-2 bg-emerald-100/80 text-emerald-800 text-xs px-3 py-1.5 rounded-full font-medium mb-6">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>100% Verified Nigerian Merchants & Secure Escrow Checkout</span>
+            <span>100% Verified Nigerian Merchants & Escrow Protection</span>
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-900 tracking-tight max-w-4xl mx-auto leading-tight">
             The Multi-Vendor Marketplace Connecting <span className="text-emerald-600">Nigeria</span> to the World.
           </h1>
 
-          <p className="mt-6 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto">
-            Discover premium quality goods from authentic sellers. Pay seamlessly from Nigeria or abroad with international cards, and enjoy tracked deliveries to your doorstep.
+          <p className="mt-6 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Discover authentic handcrafted attire, natural skincare, indigenous groceries, and artisan crafts directly from approved Nigerian sellers.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
-              href="#categories"
-              className="w-full sm:w-auto px-8 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+              href="#featured-products"
+              className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
             >
               <span>Explore Marketplace</span>
               <ArrowRight className="w-4 h-4" />
             </a>
             <a
               href="#international-payments"
-              className="w-full sm:w-auto px-8 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl font-semibold hover:bg-slate-50 transition"
+              className="w-full sm:w-auto px-8 py-3.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-semibold hover:bg-slate-100 transition shadow-sm"
             >
               How International Payments Work
             </a>
@@ -128,36 +64,36 @@ export default function HomePage() {
 
           {/* Key Value Badges */}
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
-            <div className="bg-white p-5 rounded-2xl border shadow-sm flex items-start gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-start gap-4">
               <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700">
                 <CreditCard className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="font-semibold text-slate-900 text-sm">International & Local Cards</h2>
+                <h3 className="font-semibold text-slate-900 text-sm">International & Local Cards</h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Pay securely with Visa, Mastercard, Verve, or direct bank transfer via Paystack.
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border shadow-sm flex items-start gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-start gap-4">
               <div className="p-2.5 rounded-xl bg-sky-100 text-sky-700">
                 <Truck className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="font-semibold text-slate-900 text-sm">Reliable Delivery Zones</h2>
+                <h3 className="font-semibold text-slate-900 text-sm">Reliable Delivery Zones</h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Verified delivery across all 36 Nigerian states and select international destinations.
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border shadow-sm flex items-start gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-start gap-4">
               <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="font-semibold text-slate-900 text-sm">Verified Vendor Escrow</h2>
+                <h3 className="font-semibold text-slate-900 text-sm">Verified Vendor Escrow</h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Vendors are strictly verified. Funds are held securely until order delivery is confirmed.
                 </p>
@@ -167,20 +103,63 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Categories */}
-      <section id="categories" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
+      {/* Featured Products Showcase */}
+      <section id="featured-products" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Explore Marketplace Categories</h2>
-            <p className="text-sm text-slate-500 mt-1">Sourced directly from verified independent vendors</p>
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Direct from Verified Artisans & Sellers</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Featured Products</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Prices update automatically in your selected currency.
+            </p>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {SAMPLE_PRODUCTS.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+
+      {/* Delivery Checker & Serviceability Section */}
+      <section className="py-12 bg-white border-y border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-6">
+              <div className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-bold uppercase tracking-wider mb-2">
+                <Truck className="w-4 h-4" />
+                <span>Strict Delivery Coverage Gate</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-snug">
+                Where can GOJIFEM deliver your package?
+              </h2>
+              <p className="text-sm text-slate-600 mt-3 leading-relaxed">
+                Before you pay, our system verifies whether the recipient shipping address is within our serviceable zones. You can purchase goods from abroad using international cards for delivery anywhere within Nigeria.
+              </p>
+            </div>
+            <div className="lg:col-span-6">
+              <DeliveryChecker />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories Grid */}
+      <section id="categories" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <h2 className="text-2xl font-bold text-slate-900">Browse by Department</h2>
+          <p className="text-sm text-slate-500 mt-1">Shop through verified multi-vendor inventories</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {CATEGORIES.map((cat) => (
             <div
               key={cat.name}
-              className="bg-white border rounded-2xl p-5 hover:border-emerald-500 hover:shadow-md transition cursor-pointer text-center group"
+              className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-emerald-500 hover:shadow-md transition cursor-pointer text-center group"
             >
               <div className="text-3xl mb-3 group-hover:scale-110 transition">{cat.icon}</div>
               <h3 className="font-semibold text-slate-800 text-sm">{cat.name}</h3>
@@ -190,7 +169,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* International Payments Explainer Section */}
+      {/* International Payments Explainer */}
       <section id="international-payments" className="bg-slate-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">

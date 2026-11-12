@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { MarketplaceProvider } from '../context/MarketplaceContext';
 
 export const metadata: Metadata = {
   title: 'GOJIFEM | Nigeria Multi-Vendor E-Commerce Marketplace',
@@ -14,7 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col font-sans antialiased">{children}</body>
+      <body className="min-h-screen flex flex-col font-sans antialiased text-slate-900 bg-slate-50">
+        <MarketplaceProvider>{children}</MarketplaceProvider>
+      </body>
     </html>
   );
 }
