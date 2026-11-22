@@ -35,9 +35,9 @@ export default function CartPage() {
           <div className="w-16 h-16 rounded-full bg-rose text-ruby flex items-center justify-center mb-4">
             <ShoppingBag className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-serif font-bold text-espresso">Your shopping bag is empty</h1>
+          <h1 className="text-2xl font-serif font-bold text-espresso">Your shopping cart is empty</h1>
           <p className="text-sm text-espresso/70 mt-2 max-w-sm">
-            Explore authentic botanicals, shea elixirs, and bespoke goods from verified Nigerian vendors.
+            Explore electronics, fashion, groceries, home living essentials, and authentic goods from verified sellers.
           </p>
           <Link
             href="/"
@@ -59,9 +59,9 @@ export default function CartPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-espresso">Multi-Vendor Shopping Bag</h1>
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-espresso">Multi-Vendor Shopping Cart</h1>
             <p className="text-xs sm:text-sm text-espresso/70 mt-1">
-              {cart.length} item{cart.length > 1 ? 's' : ''} from {vendorCount} independent Nigerian artisan{vendorCount > 1 ? 's' : ''}
+              {cart.length} item{cart.length > 1 ? 's' : ''} from {vendorCount} independent merchant{vendorCount > 1 ? 's' : ''}
             </p>
           </div>
 
@@ -70,7 +70,7 @@ export default function CartPage() {
             className="text-xs font-semibold text-ruby hover:underline transition flex items-center gap-1"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Empty Bag</span>
+            <span>Empty Cart</span>
           </button>
         </div>
 

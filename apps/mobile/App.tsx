@@ -35,12 +35,12 @@ const MOCK_PRODUCTS = [
   },
   {
     id: 'prod_2',
-    title: '100% Organic Raw Nigerian Shea Butter (500g)',
-    vendorName: 'Sahel Naturals Organic Co.',
-    category: 'Beauty & Wellness',
-    priceNGN: 4800,
-    imageUrl: 'https://images.unsplash.com/photo-1608248597359-0d414a1c5d9a?auto=format&fit=crop&w=400&q=80',
-    rating: 4.8,
+    title: 'SolarGen 1.5kVA Pure Sine Wave Portable Power Station',
+    vendorName: 'Naija Volt Tech Solutions',
+    category: 'Electronics & Gadgets',
+    priceNGN: 460000,
+    imageUrl: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&w=400&q=80',
+    rating: 4.9,
   },
   {
     id: 'prod_3',
@@ -50,6 +50,15 @@ const MOCK_PRODUCTS = [
     priceNGN: 22000,
     imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=400&q=80',
     rating: 5.0,
+  },
+  {
+    id: 'prod_4',
+    title: 'Smart 8L Multi-Tier Pressure Cooker & Food Steamer',
+    vendorName: 'Continental Housewares NG',
+    category: 'Home & Kitchen',
+    priceNGN: 680000,
+    imageUrl: 'https://images.unsplash.com/photo-1544233726-9f1d2b27be8b?auto=format&fit=crop&w=400&q=80',
+    rating: 4.8,
   },
 ];
 
@@ -62,6 +71,12 @@ export default function App() {
       title: 'Handcrafted Luxury Aso-Oke Agbada Set',
       priceNGN: 145000,
       vendor: 'Omo Odua Heritage Looms',
+    },
+    {
+      id: 'prod_2',
+      title: 'SolarGen 1.5kVA Portable Power Station',
+      priceNGN: 460000,
+      vendor: 'Naija Volt Tech Solutions',
     },
   ]);
 
@@ -80,22 +95,22 @@ export default function App() {
       {/* Top Banner */}
       <View style={styles.topBanner}>
         <Text style={styles.topBannerText}>
-          🌍 International Cards Accepted • Doorstep Delivery in Nigeria
+          🌍 Shop All Items Locally & Worldwide • International Cards Accepted
         </Text>
       </View>
 
-      {/* Header */}
+      {/* Header with Shopping Cart next to GOJIFEM */}
       <View style={styles.header}>
         <View style={styles.logoRow}>
           <View style={styles.logoBadge}>
             <Text style={styles.logoBadgeText}>G</Text>
           </View>
           <View>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={styles.headerTitle}>GOJIFEM</Text>
-              <View style={styles.logoDot} />
+              <Text style={styles.logoCartIcon}>🛒</Text>
             </View>
-            <Text style={styles.headerSubtitle}>MARKETPLACE</Text>
+            <Text style={styles.headerSubtitle}>GLOBAL MARKETPLACE</Text>
           </View>
         </View>
 
@@ -121,7 +136,7 @@ export default function App() {
           {/* Search Bar */}
           <View style={styles.searchContainer}>
             <TextInput
-              placeholder="Search products, brands, or verified vendors..."
+              placeholder="Search all items: tech, fashion, food, home..."
               placeholderTextColor={PALETTE.espressoSubtle}
               style={styles.searchInput}
             />
@@ -129,11 +144,20 @@ export default function App() {
 
           {/* Escrow Badge */}
           <View style={styles.escrowCard}>
-            <Text style={styles.escrowTitle}>★ VERIFIED NIGERIAN ARTISANS</Text>
+            <Text style={styles.escrowTitle}>★ SHOP ALL KINDS OF ITEMS LOCALLY & WORLDWIDE</Text>
             <Text style={styles.escrowDesc}>
-              Pay from abroad or locally with Visa/Mastercard. Vendors are paid only after verified courier receipt.
+              Electronics, fashion, groceries, home appliances & crafts. 100% buyer escrow protection.
             </Text>
           </View>
+
+          {/* Category Chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catChipsScroll}>
+            {['All', 'Electronics', 'Fashion', 'Groceries', 'Home & Kitchen', 'Hardware', 'Books'].map((cat, i) => (
+              <View key={cat} style={[styles.catChip, i === 0 && styles.catChipActive]}>
+                <Text style={[styles.catChipText, i === 0 && styles.catChipTextActive]}>{cat}</Text>
+              </View>
+            ))}
+          </ScrollView>
 
           {/* Section Header */}
           <Text style={styles.sectionTitle}>Featured Marketplace Listings</Text>
@@ -170,7 +194,7 @@ export default function App() {
 
       {activeTab === 'cart' && (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.sectionTitle}>Multi-Vendor Shopping Bag ({cart.length})</Text>
+          <Text style={styles.sectionTitle}>Multi-Vendor Shopping Cart ({cart.length})</Text>
 
           {cart.map((item, idx) => (
             <View key={idx} style={styles.cartCard}>
@@ -219,9 +243,9 @@ export default function App() {
             </View>
 
             <View style={styles.packageBox}>
-              <Text style={styles.packageVendor}>Package 2: Sahel Naturals Organic Co.</Text>
-              <Text style={styles.packageItems}>2x Raw Organic Shea Butter</Text>
-              <Text style={styles.packageStatus}>Status: Vendor Packing</Text>
+              <Text style={styles.packageVendor}>Package 2: Naija Volt Tech Solutions</Text>
+              <Text style={styles.packageItems}>1x SolarGen 1.5kVA Portable Power Station</Text>
+              <Text style={styles.packageStatus}>Status: Dispatched via Red Star Express</Text>
             </View>
           </View>
         </ScrollView>
@@ -243,7 +267,7 @@ export default function App() {
           style={[styles.tabItem, activeTab === 'cart' && styles.tabItemActive]}
         >
           <Text style={[styles.tabText, activeTab === 'cart' && styles.tabTextActive]}>
-            🛒 Bag ({cart.length})
+            🛒 Cart ({cart.length})
           </Text>
         </TouchableOpacity>
 
@@ -304,13 +328,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 18,
   },
-  logoDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: PALETTE.ruby,
-    marginLeft: 2,
-    marginBottom: 2,
+  logoCartIcon: {
+    fontSize: 15,
   },
   headerTitle: {
     fontWeight: '900',
@@ -370,7 +389,7 @@ const styles = StyleSheet.create({
     borderColor: PALETTE.gold,
     borderRadius: 14,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   escrowTitle: {
     fontSize: 11,
@@ -383,6 +402,30 @@ const styles = StyleSheet.create({
     color: PALETTE.espressoMuted,
     marginTop: 4,
     lineHeight: 14,
+  },
+  catChipsScroll: {
+    marginBottom: 16,
+  },
+  catChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: PALETTE.white,
+    borderWidth: 1,
+    borderColor: PALETTE.rose,
+    marginRight: 8,
+  },
+  catChipActive: {
+    backgroundColor: PALETTE.ruby,
+    borderColor: PALETTE.ruby,
+  },
+  catChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: PALETTE.espresso,
+  },
+  catChipTextActive: {
+    color: PALETTE.white,
   },
   sectionTitle: {
     fontSize: 14,

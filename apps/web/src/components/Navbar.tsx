@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { 
   ShoppingBag, 
+  ShoppingCart,
   Search, 
   Globe2, 
   Store, 
@@ -21,25 +22,25 @@ export function Navbar() {
       <div className="bg-espresso text-ivory text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2 border-b border-espresso-muted">
         <Globe2 className="w-3.5 h-3.5 text-gold shrink-0" />
         <span>
-          <strong className="text-gold">Worldwide Card Acceptance:</strong> Pay securely from abroad with foreign cards for verified deliveries in Nigeria and enabled zones.
+          <strong className="text-gold">Worldwide & Local Deliveries:</strong> Buy all kinds of products locally or from abroad with seamless Visa, Mastercard, and Verve payments.
         </span>
       </div>
 
       {/* Main Navbar */}
       <header className="border-b border-rose/60 bg-ivory/95 backdrop-blur-md sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          {/* Logo */}
+          {/* Logo with Shopping Cart next to GOJIFEM */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-xl bg-ruby flex items-center justify-center text-white font-extrabold text-xl shadow-md ring-2 ring-gold/40 group-hover:bg-ruby-hover transition">
               G
             </div>
             <div>
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xl tracking-tight text-espresso font-serif">GOJIFEM</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-ruby"></span>
+                <ShoppingCart className="w-5 h-5 text-ruby" />
               </div>
-              <span className="text-[10px] block font-bold text-gold uppercase tracking-wider -mt-1">
-                Marketplace
+              <span className="text-[10px] block font-bold text-gold uppercase tracking-wider -mt-0.5">
+                Global Marketplace
               </span>
             </div>
           </Link>
@@ -48,7 +49,7 @@ export function Navbar() {
           <div className="hidden md:flex flex-1 max-w-lg relative">
             <input
               type="text"
-              placeholder="Search authentic products, categories, or Nigerian sellers..."
+              placeholder="Search all items: electronics, fashion, groceries, home, books..."
               className="w-full pl-10 pr-4 py-2 border border-rose rounded-full text-xs text-espresso placeholder-espresso/50 focus:outline-none focus:ring-2 focus:ring-ruby focus:border-ruby bg-white/80 transition"
             />
             <Search className="w-4 h-4 text-gold absolute left-3.5 top-2.5" />
@@ -95,7 +96,7 @@ export function Navbar() {
               className="flex items-center gap-2 bg-ruby text-white text-xs font-semibold px-3.5 py-2 rounded-xl hover:bg-ruby-hover transition shadow-sm"
             >
               <ShoppingBag className="w-4 h-4" />
-              <span className="hidden sm:inline">Bag</span>
+              <span className="hidden sm:inline">Cart</span>
               <span className="bg-gold text-espresso rounded-full px-1.5 py-0.2 text-[10px] font-extrabold">
                 {totalItems}
               </span>

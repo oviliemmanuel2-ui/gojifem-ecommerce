@@ -3,9 +3,9 @@ import './globals.css';
 import { MarketplaceProvider } from '../context/MarketplaceContext';
 
 export const metadata: Metadata = {
-  title: 'GOJIFEM | Nigeria Multi-Vendor E-Commerce Marketplace',
+  title: 'GOJIFEM | Global Multi-Vendor Marketplace (Shop All Items Locally & Worldwide)',
   description:
-    'Discover, compare, and purchase authentic products from verified Nigerian merchants with seamless local and international card payments.',
+    'Discover and buy all kinds of items — electronics, fashion, groceries, home appliances, automotive, books, and crafts — from verified Nigerian merchants with seamless local and international card payments.',
 };
 
 export default function RootLayout({
