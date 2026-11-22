@@ -19,6 +19,7 @@ export class PaymentsController {
       orderId: string;
       orderNumber: string;
       customerEmail: string;
+      customerName?: string;
       amountMinor: number;
       currency: CurrencyCode;
       provider?: PaymentProviderName;
@@ -29,8 +30,9 @@ export class PaymentsController {
         orderId: body.orderId,
         orderNumber: body.orderNumber,
         customerEmail: body.customerEmail,
+        customerName: body.customerName,
         amount: {
-          amount: body.amountMinor,
+          amount: BigInt(body.amountMinor) as any,
           currency: body.currency,
         },
         currency: body.currency,
@@ -57,5 +59,15 @@ export class PaymentsController {
   ) {
     const rawBody = JSON.stringify(payload);
     return this.paymentsService.handlePaystackWebhook(rawBody, signature);
+  }
+
+  @Post('webhooks/flutterwave')
+  @ApiOperation({ summary: 'Signed webhook listener for Flutterwave payment notifications' })
+  async flutterwaveWebhook(
+    @Headers('verif-hash') signature: string,
+    @Body() payload: any,
+  ) {
+    const rawBody = JSON.stringify(payload);
+    return this.paymentsService.handleFlutterwaveWebhook(rawBody, signature);
   }
 }

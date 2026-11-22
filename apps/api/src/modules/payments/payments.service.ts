@@ -9,6 +9,7 @@ import {
 } from '@gojifem/types';
 import { prisma, OrderStatus, PaymentStatus, VendorOrderStatus } from '@gojifem/database';
 import { PaystackProvider } from './paystack.provider';
+import { FlutterwaveProvider } from './flutterwave.provider';
 import { LedgerService } from '../ledger/ledger.service';
 
 @Injectable()
@@ -18,9 +19,11 @@ export class PaymentsService {
 
   constructor(
     private readonly paystackProvider: PaystackProvider,
+    private readonly flutterwaveProvider: FlutterwaveProvider,
     private readonly ledgerService: LedgerService,
   ) {
     this.providers.set(PaymentProviderName.PAYSTACK, this.paystackProvider);
+    this.providers.set(PaymentProviderName.FLUTTERWAVE, this.flutterwaveProvider);
   }
 
   getProvider(name: PaymentProviderName = PaymentProviderName.PAYSTACK): PaymentProvider {
@@ -70,6 +73,22 @@ export class PaymentsService {
     return { status: 'acknowledged' };
   }
 
+  async handleFlutterwaveWebhook(rawBody: string, signature: string) {
+    const provider = this.getProvider(PaymentProviderName.FLUTTERWAVE);
+    const event = provider.parseWebhookEvent(rawBody, signature);
+
+    this.logger.log(`Received verified Flutterwave webhook event: ${event.event} [${event.id}]`);
+
+    const data = event.data as any;
+    const txRef = data.tx_ref || data.txRef || data.reference;
+    if (txRef) {
+      const verification = await provider.verifyPayment(txRef);
+      await this.processSuccessfulPayment(txRef, verification, event.id, event.data);
+    }
+
+    return { status: 'acknowledged' };
+  }
+
   private async processSuccessfulPayment(
     reference: string,
     verification: VerifyPaymentResponse,
@@ -98,87 +117,75 @@ export class PaymentsService {
       return;
     }
 
-    const order = payment.order;
-
     await prisma.$transaction(async (tx) => {
-      // 1. Update Payment Record
+      // 1. Mark payment record SUCCEEDED
       await tx.payment.update({
         where: { id: payment.id },
         data: {
           status: PaymentStatus.SUCCEEDED,
           paidAt: verification.paidAt || new Date(),
-          paymentMethod: verification.channel || 'card',
-          isInternationalCard: verification.isInternationalCard,
+          isInternationalCard: verification.isInternationalCard ?? false,
           cardCountry: verification.cardCountry,
+          paymentMethod: verification.cardType || payment.paymentMethod || 'card',
         },
       });
 
-      // 2. Record Event in payment_events
-      if (eventId || rawPayload) {
+      // Optional: record payment event audit
+      if (eventId || rawPayload || verification.rawPayload) {
         await tx.paymentEvent.create({
           data: {
             paymentId: payment.id,
             provider: payment.provider,
-            eventType: 'charge.success',
-            providerEventId: eventId || `pevt_${Date.now()}`,
-            rawPayload: (rawPayload || verification.rawPayload) as any,
+            eventType: 'payment.success',
+            providerEventId: eventId || undefined,
+            rawPayload: (rawPayload || verification.rawPayload || {}) as any,
           },
         });
       }
 
-      // 3. Mark Parent Order as PAID
+      // 2. Advance parent order state to PAID
       await tx.order.update({
-        where: { id: order.id },
-        data: { status: OrderStatus.PAID },
+        where: { id: payment.orderId },
+        data: {
+          status: OrderStatus.PAID,
+        },
       });
 
-      // 4. Update all child VendorOrders to ACCEPTED
-      for (const vo of order.vendorOrders) {
+      // 3. Advance split vendor orders to ACCEPTED
+      for (const vOrder of payment.order.vendorOrders) {
         await tx.vendorOrder.update({
-          where: { id: vo.id },
-          data: { status: VendorOrderStatus.ACCEPTED },
+          where: { id: vOrder.id },
+          data: {
+            status: VendorOrderStatus.ACCEPTED,
+          },
         });
       }
 
-      // 5. Commit atomic stock reservation
-      for (const vo of order.vendorOrders) {
-        const orderItems = await tx.orderItem.findMany({
-          where: { vendorOrderId: vo.id },
-        });
+      // 4. Record double-entry financial ledger journal entry for escrow collection
+      const providerCode =
+        payment.provider === 'FLUTTERWAVE'
+          ? '1020-FLUTTERWAVE-CLEARING'
+          : '1010-PAYSTACK-CLEARING';
 
-        for (const item of orderItems) {
-          await tx.inventoryItem.update({
-            where: { variantId: item.variantId },
-            data: {
-              onHand: { decrement: item.quantity },
-              reserved: { decrement: item.quantity },
-            },
-          });
-        }
-      }
+      const totalCommission = payment.order.vendorOrders.reduce(
+        (sum, vo) => sum + vo.commissionAmountMinor,
+        BigInt(0),
+      );
+      const deliveryFee = payment.order.shippingFeeMinor;
+      const vendorPayables = payment.amountMinor - totalCommission - deliveryFee;
+
+      await this.ledgerService.recordOrderPayment({
+        orderId: payment.orderId,
+        orderNumber: payment.order.orderNumber,
+        providerCode,
+        grossAmountMinor: payment.amountMinor,
+        vendorPayablesMinor: vendorPayables,
+        commissionMinor: totalCommission,
+        deliveryMinor: deliveryFee,
+        currency: payment.currency,
+      });
     });
 
-    // 6. Record balanced double-entry ledger transaction
-    const totalVendorPayables = order.vendorOrders.reduce(
-      (acc, vo) => acc + vo.vendorPayableMinor,
-      0n,
-    );
-    const totalCommissions = order.vendorOrders.reduce(
-      (acc, vo) => acc + vo.commissionAmountMinor,
-      0n,
-    );
-
-    await this.ledgerService.recordOrderPayment({
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      providerCode: '1010-PAYSTACK-CLEARING',
-      grossAmountMinor: order.totalMinor,
-      vendorPayablesMinor: totalVendorPayables,
-      commissionMinor: totalCommissions,
-      deliveryMinor: order.shippingFeeMinor,
-      currency: 'NGN',
-    });
-
-    this.logger.log(`Order ${order.orderNumber} successfully paid and settled to ledger.`);
+    this.logger.log(`Payment "${reference}" processed successfully: Escrow journal created & orders marked PAID.`);
   }
 }

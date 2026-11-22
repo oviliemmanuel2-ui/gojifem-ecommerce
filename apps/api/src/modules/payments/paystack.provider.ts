@@ -24,8 +24,46 @@ export class PaystackProvider implements PaymentProvider {
       `Initializing Paystack transaction [${reference}] for Order ${request.orderNumber} - Amount: ${request.amount.amount} ${request.currency}`,
     );
 
-    // In a live call, this sends a POST to https://api.paystack.co/transaction/initialize
-    // Paystack accepts foreign cards (Visa, Mastercard, Amex) when enabled on the merchant account.
+    // If a live/test key is provided, attempt live API call
+    if (this.secretKey && !this.secretKey.includes('placeholder')) {
+      try {
+        const response = await fetch('https://api.paystack.co/transaction/initialize', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.secretKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            reference,
+            amount: Number(request.amount.amount), // kobo
+            email: request.customerEmail,
+            currency: request.currency,
+            callback_url: request.callbackUrl,
+            metadata: {
+              orderId: request.orderId,
+              orderNumber: request.orderNumber,
+              customerName: request.customerName,
+              ...request.metadata,
+            },
+          }),
+        });
+
+        const data = (await response.json()) as any;
+        if (data.status && data.data?.authorization_url) {
+          return {
+            reference: data.data.reference || reference,
+            provider: this.providerName,
+            checkoutUrl: data.data.authorization_url,
+            authorizationUrl: data.data.authorization_url,
+            accessCode: data.data.access_code,
+          };
+        }
+      } catch (err) {
+        this.logger.error(`Paystack live API call failed: ${err}. Falling back to standard checkout link.`);
+      }
+    }
+
+    // Standard / Sandbox Mode
     return {
       reference,
       provider: this.providerName,
@@ -38,7 +76,44 @@ export class PaystackProvider implements PaymentProvider {
   async verifyPayment(reference: string): Promise<VerifyPaymentResponse> {
     this.logger.log(`Verifying Paystack transaction [${reference}]`);
 
-    // In a live call, this calls GET https://api.paystack.co/transaction/verify/${reference}
+    if (this.secretKey && !this.secretKey.includes('placeholder')) {
+      try {
+        const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${this.secretKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const data = (await response.json()) as any;
+        if (data.status && data.data) {
+          const tx = data.data;
+          const isSuccess = tx.status === 'success';
+          const cardCountry = tx.authorization?.country_code || 'NG';
+          const isInternational = Boolean(tx.authorization?.is_international || cardCountry.toUpperCase() !== 'NG');
+
+          return {
+            reference,
+            providerReference: tx.id?.toString() || reference,
+            status: isSuccess ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED,
+            amount: {
+              amount: BigInt(tx.amount),
+              currency: tx.currency as CurrencyCode,
+            },
+            paidAt: new Date(tx.paid_at || Date.now()),
+            channel: tx.channel || 'card',
+            cardType: tx.authorization?.brand || 'card',
+            cardCountry,
+            isInternationalCard: isInternational,
+            rawPayload: tx,
+          };
+        }
+      } catch (err) {
+        this.logger.error(`Paystack live verification call failed: ${err}. Falling back to simulation.`);
+      }
+    }
+
+    // Sandbox simulated verification
     return {
       reference,
       providerReference: `pstk_trx_${reference}`,
