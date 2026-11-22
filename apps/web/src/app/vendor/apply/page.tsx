@@ -54,47 +54,47 @@ export default function VendorApplyPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-ivory text-espresso">
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1 w-full">
         {/* Progress Tracker */}
         <div className="mb-8">
-          <div className="flex items-center justify-between max-w-xl mx-auto text-xs font-bold text-slate-500">
+          <div className="flex items-center justify-between max-w-xl mx-auto text-xs font-bold text-espresso/60">
             <button
               onClick={() => setStep(1)}
-              className={`flex items-center gap-1.5 ${step >= 1 ? 'text-emerald-700 font-extrabold' : ''}`}
+              className={`flex items-center gap-1.5 ${step >= 1 ? 'text-ruby font-extrabold' : ''}`}
             >
               <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                step >= 1 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                step >= 1 ? 'bg-ruby text-white' : 'bg-rose text-espresso'
               }`}>
                 1
               </span>
               <span>Business KYC</span>
             </button>
 
-            <div className={`h-0.5 flex-1 mx-3 ${step >= 2 ? 'bg-emerald-600' : 'bg-slate-200'}`} />
+            <div className={`h-0.5 flex-1 mx-3 ${step >= 2 ? 'bg-ruby' : 'bg-rose'}`} />
 
             <button
               onClick={() => setStep(2)}
-              className={`flex items-center gap-1.5 ${step >= 2 ? 'text-emerald-700 font-extrabold' : ''}`}
+              className={`flex items-center gap-1.5 ${step >= 2 ? 'text-ruby font-extrabold' : ''}`}
             >
               <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                step >= 2 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                step >= 2 ? 'bg-ruby text-white' : 'bg-rose text-espresso'
               }`}>
                 2
               </span>
               <span>Bank Settlement</span>
             </button>
 
-            <div className={`h-0.5 flex-1 mx-3 ${step >= 3 ? 'bg-emerald-600' : 'bg-slate-200'}`} />
+            <div className={`h-0.5 flex-1 mx-3 ${step >= 3 ? 'bg-ruby' : 'bg-rose'}`} />
 
             <button
               onClick={() => setStep(3)}
-              className={`flex items-center gap-1.5 ${step >= 3 ? 'text-emerald-700 font-extrabold' : ''}`}
+              className={`flex items-center gap-1.5 ${step >= 3 ? 'text-ruby font-extrabold' : ''}`}
             >
               <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                step >= 3 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                step >= 3 ? 'bg-ruby text-white' : 'bg-rose text-espresso'
               }`}>
                 3
               </span>
@@ -105,31 +105,31 @@ export default function VendorApplyPage() {
 
         {/* Status Alert Banner */}
         {status === 'UNDER_REVIEW' && (
-          <div className="mb-8 p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
-            <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="mb-8 p-5 bg-rose/50 border border-gold/40 rounded-2xl flex items-start gap-3">
+            <Clock className="w-5 h-5 text-gold shrink-0 mt-0.5" />
             <div>
-              <h2 className="text-sm font-bold text-amber-900">Application Under Staff Review</h2>
-              <p className="text-xs text-amber-700 mt-1">
+              <h2 className="text-sm font-serif font-bold text-espresso">Application Under Staff Review</h2>
+              <p className="text-xs text-espresso/80 mt-1">
                 Your CAC certificate and Guaranty Trust Bank settlement account are currently being verified by GOJIFEM Operations. Reviews are typically completed within <strong>24 business hours</strong>.
               </p>
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10">
+        <div className="bg-white rounded-3xl border border-rose shadow-sm p-6 sm:p-10">
           {/* Step 1: Business Identity & CAC */}
           {step === 1 && (
             <div className="space-y-6">
               <div>
-                <h1 className="text-xl font-bold text-slate-900">Step 1: Business Identity & Verification</h1>
-                <p className="text-xs text-slate-500 mt-1">
+                <h1 className="text-xl font-serif font-bold text-espresso">Step 1: Business Identity & Verification</h1>
+                <p className="text-xs text-espresso/70 mt-1">
                   Upload official Corporate Affairs Commission (CAC) evidence to become a verified merchant.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-espresso mb-1.5">
                     CAC Registration Number (RC or BN)
                   </label>
                   <input
@@ -137,12 +137,12 @@ export default function VendorApplyPage() {
                     value={rcNumber}
                     onChange={(e) => setRcNumber(e.target.value)}
                     placeholder="RC-1234567"
-                    className="w-full text-xs border rounded-xl px-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full text-xs border border-rose rounded-xl px-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-espresso mb-1.5">
                     Tax Identification Number (TIN)
                   </label>
                   <input
@@ -150,24 +150,24 @@ export default function VendorApplyPage() {
                     value={tinNumber}
                     onChange={(e) => setTinNumber(e.target.value)}
                     placeholder="24910482-0001"
-                    className="w-full text-xs border rounded-xl px-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full text-xs border border-rose rounded-xl px-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby"
                   />
                 </div>
               </div>
 
               {/* Upload Dropzone */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-espresso mb-1.5">
                   CAC Certificate / Business Name Document
                 </label>
-                <div className="border-2 border-dashed border-emerald-300 bg-emerald-50/30 rounded-2xl p-6 text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3">
+                <div className="border-2 border-dashed border-gold/60 bg-rose/30 rounded-2xl p-6 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-rose text-ruby flex items-center justify-center mx-auto mb-3 ring-2 ring-gold/40">
                     <FileCheck2 className="w-6 h-6" />
                   </div>
-                  <p className="text-xs font-bold text-slate-800">
+                  <p className="text-xs font-bold text-espresso">
                     cac_certificate_omo_odua_rc1849204.pdf (2.4 MB)
                   </p>
-                  <p className="text-[11px] text-emerald-700 font-semibold mt-1">
+                  <p className="text-[11px] text-ruby font-semibold mt-1">
                     ✓ Uploaded & Securely Stored in Private KYC Vault
                   </p>
                 </div>
@@ -177,7 +177,7 @@ export default function VendorApplyPage() {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm"
+                  className="px-6 py-2.5 bg-ruby text-white rounded-xl text-xs font-bold hover:bg-ruby-hover transition flex items-center gap-1.5 shadow-sm"
                 >
                   <span>Continue to Settlement Account</span>
                   <ArrowRight className="w-4 h-4" />
@@ -190,20 +190,20 @@ export default function VendorApplyPage() {
           {step === 2 && (
             <div className="space-y-6">
               <div>
-                <h1 className="text-xl font-bold text-slate-900">Step 2: Nigerian Commercial Bank Account</h1>
-                <p className="text-xs text-slate-500 mt-1">
+                <h1 className="text-xl font-serif font-bold text-espresso">Step 2: Nigerian Commercial Bank Account</h1>
+                <p className="text-xs text-espresso/70 mt-1">
                   All marketplace proceeds are paid out in NGN directly to your corporate or business commercial bank.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Commercial Bank</label>
+                  <label className="block text-xs font-bold text-espresso mb-1.5">Commercial Bank</label>
                   <div className="relative">
                     <select
                       value={bankCode}
                       onChange={(e) => setBankCode(e.target.value)}
-                      className="w-full text-xs border rounded-xl pl-9 pr-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby"
                     >
                       {NIGERIAN_BANKS.map((b) => (
                         <option key={b.code} value={b.code}>
@@ -211,12 +211,12 @@ export default function VendorApplyPage() {
                         </option>
                       ))}
                     </select>
-                    <Landmark className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <Landmark className="w-4 h-4 text-espresso/40 absolute left-3 top-3" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-espresso mb-1.5">
                     10-Digit NUBAN Account Number
                   </label>
                   <input
@@ -225,24 +225,24 @@ export default function VendorApplyPage() {
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
                     placeholder="0123456789"
-                    className="w-full text-xs border rounded-xl px-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
+                    className="w-full text-xs border border-rose rounded-xl px-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby font-mono text-sm"
                   />
                 </div>
               </div>
 
               {/* Resolved Bank Account Preview Card */}
               {bankResolved && (
-                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex items-center justify-between">
+                <div className="p-4 bg-rose/40 border border-gold/40 rounded-2xl flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider block">
+                    <span className="text-[10px] text-ruby font-bold uppercase tracking-wider block">
                       Account Name (NIBSS Verified)
                     </span>
-                    <strong className="text-xs font-extrabold text-slate-900">{accountName}</strong>
-                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                    <strong className="text-xs font-serif font-bold text-espresso">{accountName}</strong>
+                    <span className="text-[11px] text-espresso/70 block mt-0.5">
                       Guaranty Trust Bank • Account: ******{accountNumber.slice(-4)}
                     </span>
                   </div>
-                  <span className="px-2.5 py-1 bg-emerald-600 text-white rounded-full text-[10px] font-bold flex items-center gap-1">
+                  <span className="px-2.5 py-1 bg-gold text-espresso rounded-full text-[10px] font-bold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Verified</span>
                   </span>
@@ -253,14 +253,14 @@ export default function VendorApplyPage() {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="px-4 py-2 border rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  className="px-4 py-2 border border-rose rounded-xl text-xs font-semibold text-espresso hover:bg-rose/40 transition"
                 >
                   Back
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm"
+                  className="px-6 py-2.5 bg-ruby text-white rounded-xl text-xs font-bold hover:bg-ruby-hover transition flex items-center gap-1.5 shadow-sm"
                 >
                   <span>Review Application</span>
                   <ArrowRight className="w-4 h-4" />
@@ -273,48 +273,48 @@ export default function VendorApplyPage() {
           {step === 3 && (
             <div className="space-y-6">
               <div>
-                <h1 className="text-xl font-bold text-slate-900">Step 3: Commercial Terms & Confirmation</h1>
-                <p className="text-xs text-slate-500 mt-1">
+                <h1 className="text-xl font-serif font-bold text-espresso">Step 3: Commercial Terms & Confirmation</h1>
+                <p className="text-xs text-espresso/70 mt-1">
                   Please review your merchant submission details and confirm the escrow policy.
                 </p>
               </div>
 
               <div className="space-y-4">
-                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
+                <div className="p-4 rounded-2xl border border-rose bg-ivory space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Business Registration:</span>
-                    <strong className="text-slate-900">{rcNumber} (TIN: {tinNumber})</strong>
+                    <span className="text-espresso/70">Business Registration:</span>
+                    <strong className="text-espresso font-serif">{rcNumber} (TIN: {tinNumber})</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Document Uploaded:</span>
-                    <strong className="text-emerald-700">cac_certificate_omo_odua_rc1849204.pdf</strong>
+                    <span className="text-espresso/70">Document Uploaded:</span>
+                    <strong className="text-ruby">cac_certificate_omo_odua_rc1849204.pdf</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Settlement Bank:</span>
-                    <strong className="text-slate-900">Guaranty Trust Bank (******6789)</strong>
+                    <span className="text-espresso/70">Settlement Bank:</span>
+                    <strong className="text-espresso font-serif">Guaranty Trust Bank (******6789)</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Marketplace Commission:</span>
-                    <strong className="text-emerald-700">10.00% per fulfilled sale</strong>
+                    <span className="text-espresso/70">Marketplace Commission:</span>
+                    <strong className="text-ruby">10.00% per fulfilled sale</strong>
                   </div>
                 </div>
 
-                <div className="p-4 bg-emerald-950 text-emerald-100 rounded-2xl text-xs space-y-2 border border-emerald-900">
-                  <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+                <div className="p-4 bg-espresso text-ivory rounded-2xl text-xs space-y-2 border border-gold/30">
+                  <div className="flex items-center gap-1.5 font-bold text-gold">
                     <ShieldCheck className="w-4 h-4" />
                     <span>Escrow & Payout Policy</span>
                   </div>
-                  <p className="text-[11px] text-emerald-200/80 leading-relaxed">
+                  <p className="text-[11px] text-ivory/80 leading-relaxed">
                     Customer funds are held in escrow clearing until the courier records successful delivery to the recipient. Payouts are transferred automatically via NIBSS/Paystack to your verified GTBank settlement account within 72 hours of verified receipt.
                   </p>
                 </div>
 
-                <label className="flex items-start gap-2 cursor-pointer text-xs text-slate-600 pt-2">
+                <label className="flex items-start gap-2 cursor-pointer text-xs text-espresso/80 pt-2">
                   <input
                     type="checkbox"
                     checked={agreed}
                     onChange={(e) => setAgreed(e.target.checked)}
-                    className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
+                    className="mt-0.5 rounded text-ruby focus:ring-ruby"
                   />
                   <span>
                     I certify that all documents submitted are valid, and I agree to fulfill customer orders strictly through tracked logistics carriers.
@@ -326,7 +326,7 @@ export default function VendorApplyPage() {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="px-4 py-2 border rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                  className="px-4 py-2 border border-rose rounded-xl text-xs font-semibold text-espresso hover:bg-rose/40 transition"
                 >
                   Back
                 </button>
@@ -334,7 +334,7 @@ export default function VendorApplyPage() {
                   type="button"
                   disabled={!agreed || submitting || status === 'UNDER_REVIEW'}
                   onClick={handleSubmitApplication}
-                  className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20 disabled:opacity-50"
+                  className="px-6 py-2.5 bg-ruby text-white rounded-xl text-xs font-bold hover:bg-ruby-hover transition flex items-center gap-1.5 shadow-md shadow-ruby/20 disabled:opacity-50"
                 >
                   <span>{submitting ? 'Submitting...' : status === 'UNDER_REVIEW' ? 'Application Submitted ✓' : 'Submit for Staff Verification'}</span>
                   <ArrowRight className="w-4 h-4" />

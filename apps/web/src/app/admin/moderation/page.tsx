@@ -75,21 +75,21 @@ export default function AdminModerationPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-ivory text-espresso">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-ruby uppercase tracking-wider mb-1">
+              <ShieldCheck className="w-4 h-4 text-gold" />
               <span>Operations & Compliance</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-espresso">
               Product Listing Moderation
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-espresso/70 mt-1">
               Inspect new merchant listings for authenticity, pricing accuracy, and quality before public visibility
             </p>
           </div>
@@ -98,7 +98,7 @@ export default function AdminModerationPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Moderation Queue */}
           <div className="lg:col-span-5 space-y-4">
-            <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-espresso uppercase tracking-wider">
               Pending Listings ({products.filter((p) => p.status === 'PENDING_REVIEW').length})
             </h2>
 
@@ -109,36 +109,36 @@ export default function AdminModerationPage() {
                   onClick={() => setSelectedProduct(p)}
                   className={`p-4 rounded-2xl border transition cursor-pointer flex gap-3 items-center ${
                     selectedProduct?.id === p.id
-                      ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-500/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-ruby bg-rose/40 ring-2 ring-ruby/20'
+                      : 'border-rose bg-white hover:border-ruby/40'
                   }`}
                 >
                   <img
                     src={p.imageUrl}
                     alt={p.title}
-                    className="w-16 h-16 rounded-xl object-cover bg-slate-100 border shrink-0"
+                    className="w-16 h-16 rounded-xl object-cover bg-ivory border border-rose shrink-0"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-bold uppercase text-emerald-700">
+                      <span className="text-[10px] font-bold uppercase text-ruby">
                         {p.category}
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           p.status === 'ACTIVE'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-gold text-espresso'
                             : p.status === 'REJECTED'
-                            ? 'bg-rose-100 text-rose-800'
-                            : 'bg-amber-100 text-amber-800'
+                            ? 'bg-rose text-ruby'
+                            : 'bg-ivory text-espresso border border-rose'
                         }`}
                       >
                         {p.status === 'PENDING_REVIEW' ? 'Pending Review' : p.status}
                       </span>
                     </div>
 
-                    <h3 className="font-bold text-slate-900 text-xs truncate">{p.title}</h3>
-                    <p className="text-[11px] text-slate-500 mt-0.5">By {p.vendorName}</p>
-                    <div className="text-xs font-extrabold text-slate-900 mt-1">
+                    <h3 className="font-serif font-bold text-espresso text-xs truncate">{p.title}</h3>
+                    <p className="text-[11px] text-espresso/60 mt-0.5">By {p.vendorName}</p>
+                    <div className="text-xs font-serif font-bold text-espresso mt-1">
                       {formatPrice(p.priceMinorNGN)}
                     </div>
                   </div>
@@ -149,30 +149,30 @@ export default function AdminModerationPage() {
 
           {/* Details & Moderation Actions */}
           {selectedProduct && (
-            <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="flex items-start justify-between pb-4 border-b border-slate-100 gap-4">
+            <div className="lg:col-span-7 bg-white rounded-3xl border border-rose p-6 sm:p-8 shadow-sm space-y-6">
+              <div className="flex items-start justify-between pb-4 border-b border-rose gap-4">
                 <div>
-                  <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">
+                  <span className="text-xs font-bold text-ruby uppercase tracking-wider block mb-1">
                     {selectedProduct.category}
                   </span>
-                  <h2 className="text-xl font-bold text-slate-900">{selectedProduct.title}</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Vendor: <strong>{selectedProduct.vendorName}</strong> • Submitted {selectedProduct.submittedAt}
+                  <h2 className="text-xl font-serif font-bold text-espresso">{selectedProduct.title}</h2>
+                  <p className="text-xs text-espresso/70 mt-0.5">
+                    Vendor: <strong className="text-espresso">{selectedProduct.vendorName}</strong> • Submitted {selectedProduct.submittedAt}
                   </p>
                 </div>
 
                 <div className="text-right shrink-0">
-                  <span className="text-lg font-extrabold text-slate-900 block">
+                  <span className="text-lg font-serif font-bold text-espresso block">
                     {formatPrice(selectedProduct.priceMinorNGN)}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">
+                  <span className="text-[10px] font-mono text-espresso/50">
                     SKU: {selectedProduct.sku}
                   </span>
                 </div>
               </div>
 
               {/* Media Preview */}
-              <div className="w-full h-56 rounded-2xl overflow-hidden bg-slate-100 border relative">
+              <div className="w-full h-56 rounded-2xl overflow-hidden bg-ivory border border-rose relative">
                 <img
                   src={selectedProduct.imageUrl}
                   alt={selectedProduct.title}
@@ -182,23 +182,23 @@ export default function AdminModerationPage() {
 
               {/* Description */}
               <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                <h4 className="text-xs font-bold text-espresso uppercase tracking-wider mb-1.5">
                   Listing Description
                 </h4>
-                <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <p className="text-xs text-espresso/80 leading-relaxed bg-ivory p-4 rounded-xl border border-rose">
                   {selectedProduct.description}
                 </p>
               </div>
 
               {/* Initial Warehouse Stock */}
-              <div className="p-3 bg-slate-50 border rounded-xl flex items-center justify-between text-xs">
-                <span className="text-slate-600">Reported Warehouse Stock Available:</span>
-                <strong className="text-slate-900 font-extrabold">{selectedProduct.stockCount} units</strong>
+              <div className="p-3 bg-rose/40 border border-rose rounded-xl flex items-center justify-between text-xs">
+                <span className="text-espresso/70">Reported Warehouse Stock Available:</span>
+                <strong className="text-espresso font-serif font-bold">{selectedProduct.stockCount} units</strong>
               </div>
 
               {/* Compliance Note */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-espresso mb-1.5">
                   Moderator Audit Note
                 </label>
                 <textarea
@@ -206,7 +206,7 @@ export default function AdminModerationPage() {
                   value={moderationNote}
                   onChange={(e) => setModerationNote(e.target.value)}
                   placeholder="e.g. Imagery verified; price verified within standard category range."
-                  className="w-full text-xs border rounded-xl p-3 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full text-xs border border-rose rounded-xl p-3 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby"
                 />
               </div>
 
@@ -215,7 +215,7 @@ export default function AdminModerationPage() {
                 <button
                   type="button"
                   onClick={() => handleModerate(selectedProduct.id, 'ACTIVE')}
-                  className="flex-1 py-3 px-4 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-1 py-3 px-4 bg-ruby text-white rounded-xl text-xs font-bold hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-sm"
                 >
                   <Check className="w-4 h-4" />
                   <span>Approve & Publish to Marketplace</span>
@@ -224,7 +224,7 @@ export default function AdminModerationPage() {
                 <button
                   type="button"
                   onClick={() => handleModerate(selectedProduct.id, 'REJECTED')}
-                  className="py-3 px-4 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-50 transition flex items-center justify-center gap-2"
+                  className="py-3 px-4 border border-rose text-ruby rounded-xl text-xs font-bold hover:bg-rose/40 transition flex items-center justify-center gap-2"
                 >
                   <X className="w-4 h-4" />
                   <span>Reject Listing</span>

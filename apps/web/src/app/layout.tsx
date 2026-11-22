@@ -15,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col font-sans antialiased text-slate-900 bg-slate-50">
+      <body className="min-h-screen flex flex-col font-sans antialiased text-espresso bg-ivory selection:bg-rose selection:text-ruby">
         <MarketplaceProvider>{children}</MarketplaceProvider>
       </body>
     </html>

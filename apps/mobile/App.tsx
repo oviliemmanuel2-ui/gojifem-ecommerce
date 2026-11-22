@@ -11,6 +11,18 @@ import {
   StatusBar,
 } from 'react-native';
 
+const PALETTE = {
+  ruby: '#8F1D35',
+  rubyDark: '#7A172C',
+  gold: '#D9B66F',
+  ivory: '#FFF9F1',
+  espresso: '#332522',
+  espressoMuted: '#5C433E',
+  espressoSubtle: '#8C6C65',
+  rose: '#F3E4E6',
+  white: '#FFFFFF',
+};
+
 const MOCK_PRODUCTS = [
   {
     id: 'prod_1',
@@ -63,7 +75,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#064e3b" />
+      <StatusBar barStyle="light-content" backgroundColor={PALETTE.espresso} />
 
       {/* Top Banner */}
       <View style={styles.topBanner}>
@@ -79,7 +91,10 @@ export default function App() {
             <Text style={styles.logoBadgeText}>G</Text>
           </View>
           <View>
-            <Text style={styles.headerTitle}>GOJIFEM</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text style={styles.headerTitle}>GOJIFEM</Text>
+              <View style={styles.logoDot} />
+            </View>
             <Text style={styles.headerSubtitle}>MARKETPLACE</Text>
           </View>
         </View>
@@ -107,14 +122,14 @@ export default function App() {
           <View style={styles.searchContainer}>
             <TextInput
               placeholder="Search products, brands, or verified vendors..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={PALETTE.espressoSubtle}
               style={styles.searchInput}
             />
           </View>
 
           {/* Escrow Badge */}
           <View style={styles.escrowCard}>
-            <Text style={styles.escrowTitle}>🛡️ 100% Verified Merchant Escrow</Text>
+            <Text style={styles.escrowTitle}>★ VERIFIED NIGERIAN ARTISANS</Text>
             <Text style={styles.escrowDesc}>
               Pay from abroad or locally with Visa/Mastercard. Vendors are paid only after verified courier receipt.
             </Text>
@@ -155,7 +170,7 @@ export default function App() {
 
       {activeTab === 'cart' && (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.sectionTitle}>Multi-Vendor Cart ({cart.length})</Text>
+          <Text style={styles.sectionTitle}>Multi-Vendor Shopping Bag ({cart.length})</Text>
 
           {cart.map((item, idx) => (
             <View key={idx} style={styles.cartCard}>
@@ -228,7 +243,7 @@ export default function App() {
           style={[styles.tabItem, activeTab === 'cart' && styles.tabItemActive]}
         >
           <Text style={[styles.tabText, activeTab === 'cart' && styles.tabTextActive]}>
-            🛒 Cart ({cart.length})
+            🛒 Bag ({cart.length})
           </Text>
         </TouchableOpacity>
 
@@ -248,16 +263,16 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: PALETTE.ivory,
   },
   topBanner: {
-    backgroundColor: '#064e3b',
+    backgroundColor: PALETTE.espresso,
     paddingVertical: 6,
     paddingHorizontal: 12,
     alignItems: 'center',
   },
   topBannerText: {
-    color: '#a7f3d0',
+    color: PALETTE.gold,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -267,9 +282,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: PALETTE.ivory,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: PALETTE.rose,
   },
   logoRow: {
     flexDirection: 'row',
@@ -280,30 +295,39 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#059669',
+    backgroundColor: PALETTE.ruby,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoBadgeText: {
-    color: '#ffffff',
+    color: PALETTE.white,
     fontWeight: '900',
     fontSize: 18,
+  },
+  logoDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: PALETTE.ruby,
+    marginLeft: 2,
+    marginBottom: 2,
   },
   headerTitle: {
     fontWeight: '900',
     fontSize: 16,
-    color: '#0f172a',
-    letterSpacing: -0.5,
+    color: PALETTE.espresso,
+    letterSpacing: 0.5,
   },
   headerSubtitle: {
     fontSize: 8,
     fontWeight: '800',
-    color: '#059669',
+    color: PALETTE.gold,
     marginTop: -2,
+    letterSpacing: 1,
   },
   currencySwitch: {
     flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: PALETTE.rose,
     borderRadius: 8,
     padding: 2,
   },
@@ -313,15 +337,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   currBtnActive: {
-    backgroundColor: '#ffffff',
+    backgroundColor: PALETTE.white,
   },
   currText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#64748b',
+    color: PALETTE.espressoSubtle,
   },
   currTextActive: {
-    color: '#064e3b',
+    color: PALETTE.ruby,
   },
   content: {
     flex: 1,
@@ -331,45 +355,47 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   searchInput: {
-    backgroundColor: '#ffffff',
+    backgroundColor: PALETTE.white,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: PALETTE.rose,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 8,
     fontSize: 12,
+    color: PALETTE.espresso,
   },
   escrowCard: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: PALETTE.rose,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: PALETTE.gold,
     borderRadius: 14,
     padding: 12,
     marginBottom: 16,
   },
   escrowTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#065f46',
+    color: PALETTE.espresso,
+    letterSpacing: 0.5,
   },
   escrowDesc: {
     fontSize: 10,
-    color: '#047857',
+    color: PALETTE.espressoMuted,
     marginTop: 4,
     lineHeight: 14,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#0f172a',
+    color: PALETTE.espresso,
     marginBottom: 12,
   },
   productCard: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: PALETTE.white,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: PALETTE.rose,
     padding: 10,
     marginBottom: 12,
     gap: 12,
@@ -378,7 +404,7 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: PALETTE.ivory,
   },
   productInfo: {
     flex: 1,
@@ -387,17 +413,18 @@ const styles = StyleSheet.create({
   productCategory: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#059669',
+    color: PALETTE.ruby,
+    letterSpacing: 0.5,
   },
   productTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1e293b',
+    color: PALETTE.espresso,
     marginTop: 2,
   },
   productVendor: {
     fontSize: 10,
-    color: '#64748b',
+    color: PALETTE.espressoSubtle,
   },
   priceRow: {
     flexDirection: 'row',
@@ -408,49 +435,49 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#0f172a',
+    color: PALETTE.espresso,
   },
   addBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: PALETTE.ruby,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
   addBtnText: {
-    color: '#ffffff',
+    color: PALETTE.white,
     fontSize: 11,
     fontWeight: '800',
   },
   cartCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: PALETTE.white,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: PALETTE.rose,
     padding: 12,
     marginBottom: 10,
   },
   cartVendor: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#059669',
+    color: PALETTE.ruby,
   },
   cartTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1e293b',
+    color: PALETTE.espresso,
     marginTop: 2,
   },
   cartPrice: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#0f172a',
+    color: PALETTE.espresso,
     marginTop: 4,
   },
   summaryCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: PALETTE.white,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: PALETTE.rose,
     padding: 16,
     marginTop: 8,
   },
@@ -461,58 +488,58 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 11,
-    color: '#64748b',
+    color: PALETTE.espressoSubtle,
   },
   summaryValue: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0f172a',
+    color: PALETTE.espresso,
   },
   summaryTotalRow: {
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: PALETTE.rose,
     paddingTop: 8,
     marginTop: 4,
   },
   summaryTotalLabel: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#0f172a',
+    color: PALETTE.espresso,
   },
   summaryTotalValue: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#059669',
+    color: PALETTE.espresso,
   },
   checkoutBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: PALETTE.ruby,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 14,
   },
   checkoutBtnText: {
-    color: '#ffffff',
+    color: PALETTE.white,
     fontSize: 12,
     fontWeight: '800',
   },
   trackingCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: PALETTE.white,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: PALETTE.rose,
     padding: 16,
   },
   orderNumber: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#0f172a',
+    color: PALETTE.espresso,
   },
   paymentBadge: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#065f46',
-    backgroundColor: '#ecfdf5',
+    color: PALETTE.espresso,
+    backgroundColor: PALETTE.gold,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -521,9 +548,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   packageBox: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: PALETTE.ivory,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: PALETTE.rose,
     borderRadius: 12,
     padding: 10,
     marginBottom: 8,
@@ -531,24 +558,24 @@ const styles = StyleSheet.create({
   packageVendor: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#1e293b',
+    color: PALETTE.espresso,
   },
   packageItems: {
     fontSize: 10,
-    color: '#64748b',
+    color: PALETTE.espressoSubtle,
     marginTop: 2,
   },
   packageStatus: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#2563eb',
+    color: PALETTE.ruby,
     marginTop: 4,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: PALETTE.ivory,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: PALETTE.rose,
     paddingVertical: 8,
   },
   tabItem: {
@@ -558,15 +585,15 @@ const styles = StyleSheet.create({
   },
   tabItemActive: {
     borderTopWidth: 2,
-    borderTopColor: '#059669',
+    borderTopColor: PALETTE.ruby,
     marginTop: -2,
   },
   tabText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748b',
+    color: PALETTE.espressoSubtle,
   },
   tabTextActive: {
-    color: '#059669',
+    color: PALETTE.ruby,
   },
 });

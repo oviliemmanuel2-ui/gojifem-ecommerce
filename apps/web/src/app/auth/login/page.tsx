@@ -56,32 +56,32 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-ivory text-espresso">
       <Navbar />
 
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8">
+        <div className="w-full max-w-md bg-white rounded-3xl border border-rose shadow-sm p-6 sm:p-8">
           {/* Header */}
           <div className="text-center mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white font-extrabold text-2xl flex items-center justify-center mx-auto shadow-md mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-ruby text-white font-extrabold text-2xl flex items-center justify-center mx-auto shadow-md mb-3 ring-2 ring-gold/40">
               G
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Welcome Back</h1>
-            <p className="text-xs text-slate-500 mt-1">Sign in to your GOJIFEM marketplace account</p>
+            <h1 className="text-2xl font-serif font-bold text-espresso">Welcome Back</h1>
+            <p className="text-xs text-espresso/70 mt-1">Sign in to your GOJIFEM marketplace account</p>
           </div>
 
           {/* Account Type Toggle */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-6 text-xs font-bold text-slate-600">
+          <div className="grid grid-cols-2 p-1 bg-rose/40 rounded-xl mb-6 text-xs font-bold text-espresso">
             <button
               type="button"
               onClick={() => setAccountType('customer')}
               className={`py-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
                 accountType === 'customer'
-                  ? 'bg-white text-emerald-800 shadow-sm'
-                  : 'hover:text-slate-900'
+                  ? 'bg-white text-ruby shadow-sm'
+                  : 'hover:text-espresso/80'
               }`}
             >
-              <User className="w-3.5 h-3.5" />
+              <User className="w-3.5 h-3.5 text-ruby" />
               <span>Customer</span>
             </button>
             <button
@@ -89,24 +89,24 @@ export default function LoginPage() {
               onClick={() => setAccountType('vendor')}
               className={`py-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
                 accountType === 'vendor'
-                  ? 'bg-white text-emerald-800 shadow-sm'
-                  : 'hover:text-slate-900'
+                  ? 'bg-white text-ruby shadow-sm'
+                  : 'hover:text-espresso/80'
               }`}
             >
-              <Store className="w-3.5 h-3.5" />
+              <Store className="w-3.5 h-3.5 text-ruby" />
               <span>Merchant / Vendor</span>
             </button>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+            <div className="mb-4 p-3 rounded-xl bg-rose/50 border border-ruby/30 text-xs text-ruby font-semibold">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold text-espresso mb-1.5">
                 {accountType === 'vendor' ? 'Merchant Email' : 'Email Address'}
               </label>
               <div className="relative">
@@ -116,16 +116,16 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={accountType === 'vendor' ? 'merchant@store.com' : 'you@example.com'}
-                  className="w-full text-xs border rounded-xl pl-9 pr-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition"
                 />
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <Mail className="w-4 h-4 text-espresso/40 absolute left-3 top-3" />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-700">Password</label>
-                <a href="#" className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700">
+                <label className="text-xs font-bold text-espresso">Password</label>
+                <a href="#" className="text-[11px] font-semibold text-ruby hover:underline">
                   Forgot password?
                 </a>
               </div>
@@ -136,19 +136,19 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full text-xs border rounded-xl pl-9 pr-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition"
                 />
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <Lock className="w-4 h-4 text-espresso/40 absolute left-3 top-3" />
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
+            <div className="flex items-center justify-between text-xs text-espresso/70 pt-1">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded text-emerald-600 focus:ring-emerald-500"
+                  className="rounded text-ruby focus:ring-ruby"
                 />
                 <span>Remember me on this device</span>
               </label>
@@ -157,7 +157,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 disabled:opacity-50 mt-2"
+              className="w-full py-3 bg-ruby text-white rounded-xl font-bold text-xs hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-md shadow-ruby/20 disabled:opacity-50 mt-2"
             >
               <span>{loading ? 'Signing in...' : `Sign In as ${accountType === 'vendor' ? 'Merchant' : 'Customer'}`}</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -165,22 +165,22 @@ export default function LoginPage() {
           </form>
 
           {/* Quick Demo Fill Buttons */}
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <span className="text-[10px] text-slate-400 uppercase font-bold block mb-2 text-center">
+          <div className="mt-6 pt-4 border-t border-rose">
+            <span className="text-[10px] text-espresso/60 uppercase font-bold block mb-2 text-center">
               Quick Test Credentials
             </span>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => fillDemo('customer')}
-                className="flex-1 py-1.5 text-[11px] font-medium border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600"
+                className="flex-1 py-1.5 text-[11px] font-medium border border-rose rounded-lg hover:bg-rose/40 text-espresso"
               >
                 Demo Customer
               </button>
               <button
                 type="button"
                 onClick={() => fillDemo('vendor')}
-                className="flex-1 py-1.5 text-[11px] font-medium border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600"
+                className="flex-1 py-1.5 text-[11px] font-medium border border-rose rounded-lg hover:bg-rose/40 text-espresso"
               >
                 Demo Vendor
               </button>
@@ -188,16 +188,16 @@ export default function LoginPage() {
           </div>
 
           {/* Register Links */}
-          <div className="mt-6 text-center text-xs text-slate-500 space-y-2">
+          <div className="mt-6 text-center text-xs text-espresso/70 space-y-2">
             <p>
               Don't have an account?{' '}
-              <Link href="/auth/register" className="font-bold text-emerald-600 hover:text-emerald-700">
+              <Link href="/auth/register" className="font-bold text-ruby hover:underline">
                 Register as Customer
               </Link>
             </p>
             <p>
               Want to sell products?{' '}
-              <Link href="/auth/vendor-register" className="font-bold text-emerald-600 hover:text-emerald-700">
+              <Link href="/auth/vendor-register" className="font-bold text-ruby hover:underline">
                 Apply as Merchant
               </Link>
             </p>
