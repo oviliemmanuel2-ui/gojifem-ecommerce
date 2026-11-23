@@ -8,8 +8,13 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
+  const allowedOrigins = (process.env.WEB_URL || 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
     credentials: true,
   });
 

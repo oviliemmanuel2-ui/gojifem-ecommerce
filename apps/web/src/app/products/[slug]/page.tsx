@@ -19,6 +19,7 @@ import { Navbar } from '../../../components/Navbar';
 import { DeliveryChecker } from '../../../components/DeliveryChecker';
 import { SAMPLE_PRODUCTS } from '../../../data/sampleProducts';
 import { useMarketplace } from '../../../context/MarketplaceContext';
+import { handleImageError } from '../../../lib/imageFallback';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -73,6 +74,7 @@ export default function ProductDetailPage() {
               <img
                 src={product.imageUrl}
                 alt={product.title}
+                onError={handleImageError}
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-4 left-4 bg-gold text-espresso px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1.5">

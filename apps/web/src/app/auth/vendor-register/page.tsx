@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Store, Mail, Phone, Lock, ArrowRight, ShieldCheck, MapPin, Tag } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
+import { apiFetch, StoredSession } from '../../../lib/api';
+import { useMarketplace } from '../../../context/MarketplaceContext';
 
 export default function VendorRegisterPage() {
   const router = useRouter();
+  const { setSession, showToast } = useMarketplace();
   const [legalName, setLegalName] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [category, setCategory] = useState('Fashion & Apparel');
@@ -26,27 +29,48 @@ export default function VendorRegisterPage() {
       return;
     }
 
+    const sanitizedPhone = phone.replace(/[\s\-()]/g, '').trim();
+    if (!/^\+?[1-9]\d{6,14}$/.test(sanitizedPhone)) {
+      setError('Please enter a valid merchant phone number in E.164 format (e.g. +2348023456789).');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      // In production, this calls POST /api/v1/auth/vendor-register
-      await new Promise((r) => setTimeout(r, 700));
-
-      const mockSession = {
-        email,
-        roles: ['VENDOR_OWNER'],
-        vendor: {
-          legalName,
-          displayName,
-          status: 'DRAFT',
+      const response = await apiFetch<StoredSession & { vendor?: Record<string, unknown> }>(
+        '/auth/vendor-register',
+        {
+          method: 'POST',
+          skipAuth: true,
+          body: JSON.stringify({
+            legalName: legalName.trim(),
+            displayName: displayName.trim(),
+            primaryCategory: category,
+            operatingLocation: cityState.trim(),
+            email: email.trim(),
+            phone: sanitizedPhone,
+            password,
+          }),
         },
-        token: 'mock_jwt_vendor_token_' + Date.now(),
-      };
-      localStorage.setItem('gojifem_session', JSON.stringify(mockSession));
-      router.push('/vendor/apply'); // Directs to step 4 verification evidence upload
-    } catch {
-      setError('Registration failed. Please check your information.');
+      );
+
+      setSession({
+        ...response,
+        user: {
+          ...response.user,
+          vendors: response.vendor ? [response.vendor as never] : [],
+        },
+      });
+      showToast('Merchant account created! Complete KYC verification to go live.', 'success');
+      router.push('/vendor/apply');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Registration failed. Please check your information.',
+      );
     } finally {
       setLoading(false);
     }
@@ -209,9 +233,9 @@ export default function VendorRegisterPage() {
                 />
                 <span>
                   I agree to the{' '}
-                  <a href="#" className="font-semibold text-ruby underline">
+                  <Link href="/vendor-agreement" className="font-semibold text-ruby underline">
                     GOJIFEM Vendor Agreement
-                  </a>
+                  </Link>
                   , return standards, and escrow payout terms.
                 </span>
               </label>

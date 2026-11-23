@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { Star, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { ProductData } from '../data/sampleProducts';
 import { useMarketplace } from '../context/MarketplaceContext';
+import { handleImageError } from '../lib/imageFallback';
 
 export function ProductCard({ product }: { product: ProductData }) {
-  const { formatPrice, addToCart } = useMarketplace();
+  const { formatPrice, addToCart, showToast } = useMarketplace();
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -24,6 +25,7 @@ export function ProductCard({ product }: { product: ProductData }) {
       vendorName: product.vendorName,
       vendorSlug: product.vendorSlug,
     });
+    showToast(`Added "${product.title}" to bag`, 'success');
   };
 
   return (
@@ -33,6 +35,7 @@ export function ProductCard({ product }: { product: ProductData }) {
         <img
           src={product.imageUrl}
           alt={product.title}
+          onError={handleImageError}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
         <div className="absolute top-2.5 left-2.5 bg-gold text-espresso text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">

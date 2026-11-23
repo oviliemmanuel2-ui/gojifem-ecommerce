@@ -120,8 +120,10 @@ model User {
   id                 String             @id @default(uuid())
   email              String             @unique
   phone              String?            @unique
-  passwordHash       String
+  passwordHash       String?
   accountStatus      UserAccountStatus  @default(ACTIVE)
+  emailVerified      Boolean            @default(false)
+  emailVerifiedAt    DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -132,8 +134,57 @@ model User {
   ownedVendors       Vendor[]           @relation("VendorOwner")
   orders             Order[]
   auditLogs          AuditLog[]
+  oauthAccounts      OAuthAccount[]
 
   @@map("users")
+}
+
+model OAuthAccount {
+  id                String   @id @default(uuid())
+  userId            String
+  provider          String   // 'google' | 'apple'
+  providerAccountId String
+  email             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("oauth_accounts")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("email_verification_tokens")
+}
+
+model ContactSubmission {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("PENDING") // PENDING, RESOLVED
+  createdAt DateTime @default(now())
+
+  @@map("contact_submissions")
 }
 
 model Role {

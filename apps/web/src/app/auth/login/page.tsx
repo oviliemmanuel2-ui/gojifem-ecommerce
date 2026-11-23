@@ -3,11 +3,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Lock, Mail, ArrowRight, ShieldCheck, Store, User } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Store, User } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
+import { SocialAuthButtons } from '../../../components/SocialAuthButtons';
+import { apiFetch, StoredSession } from '../../../lib/api';
+import { useMarketplace } from '../../../context/MarketplaceContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setSession, showToast } = useMarketplace();
   const [accountType, setAccountType] = useState<'customer' | 'vendor'>('customer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,37 +25,28 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // In production, this calls POST /api/v1/auth/login
-      // Simulated successful sign in for demonstration
-      await new Promise((r) => setTimeout(r, 600));
+      const response = await apiFetch<StoredSession>('/auth/login', {
+        method: 'POST',
+        skipAuth: true,
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
 
-      const mockSession = {
-        email,
-        roles: accountType === 'vendor' ? ['VENDOR_OWNER'] : ['CUSTOMER'],
-        token: 'mock_jwt_token_' + Date.now(),
-      };
-      localStorage.setItem('gojifem_session', JSON.stringify(mockSession));
+      setSession(response);
+      showToast('Signed in successfully. Welcome back to GOJIFEM!', 'success');
 
-      if (accountType === 'vendor') {
-        router.push('/vendor/dashboard');
+      const roles = response.user?.roles || [];
+      if (accountType === 'vendor' || roles.includes('VENDOR_OWNER') || roles.includes('VENDOR_STAFF')) {
+        router.push('/vendor/products');
       } else {
         router.push('/account');
       }
-    } catch {
-      setError('Invalid email or password. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fillDemo = (type: 'customer' | 'vendor') => {
-    setAccountType(type);
-    if (type === 'customer') {
-      setEmail('customer@example.com');
-      setPassword('P@ssw0rd123');
-    } else {
-      setEmail('vendor@omoodua.com');
-      setPassword('P@ssw0rd123');
     }
   };
 
@@ -71,7 +66,7 @@ export default function LoginPage() {
           </div>
 
           {/* Account Type Toggle */}
-          <div className="grid grid-cols-2 p-1 bg-rose/40 rounded-xl mb-6 text-xs font-bold text-espresso">
+          <div className="grid grid-cols-2 p-1 bg-rose/40 rounded-xl mb-5 text-xs font-bold text-espresso">
             <button
               type="button"
               onClick={() => setAccountType('customer')}
@@ -104,6 +99,23 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* Official Google & Apple Sign-In */}
+          <SocialAuthButtons
+            mode="login"
+            onError={(msg) => setError(msg || null)}
+          />
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-rose" />
+            </div>
+            <div className="relative flex justify-center text-[11px] uppercase">
+              <span className="bg-white px-3 text-espresso/60 font-bold tracking-wider">
+                Or sign in with email
+              </span>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-espresso mb-1.5">
@@ -125,9 +137,9 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-espresso">Password</label>
-                <a href="#" className="text-[11px] font-semibold text-ruby hover:underline">
+                <Link href="/auth/forgot-password" className="text-[11px] font-semibold text-ruby hover:underline">
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <div className="relative">
                 <input
@@ -164,33 +176,10 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Fill Buttons */}
-          <div className="mt-6 pt-4 border-t border-rose">
-            <span className="text-[10px] text-espresso/60 uppercase font-bold block mb-2 text-center">
-              Quick Test Credentials
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => fillDemo('customer')}
-                className="flex-1 py-1.5 text-[11px] font-medium border border-rose rounded-lg hover:bg-rose/40 text-espresso"
-              >
-                Demo Customer
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemo('vendor')}
-                className="flex-1 py-1.5 text-[11px] font-medium border border-rose rounded-lg hover:bg-rose/40 text-espresso"
-              >
-                Demo Vendor
-              </button>
-            </div>
-          </div>
-
           {/* Register Links */}
           <div className="mt-6 text-center text-xs text-espresso/70 space-y-2">
             <p>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/auth/register" className="font-bold text-ruby hover:underline">
                 Register as Customer
               </Link>

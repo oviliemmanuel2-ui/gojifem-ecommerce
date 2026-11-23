@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
 import { useMarketplace } from '../../context/MarketplaceContext';
+import { handleImageError } from '../../lib/imageFallback';
 
 export default function CartPage() {
   const { 
@@ -105,6 +106,7 @@ export default function CartPage() {
                       <img
                         src={item.imageUrl}
                         alt={item.title}
+                        onError={handleImageError}
                         className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover bg-ivory shrink-0 border border-rose"
                       />
 

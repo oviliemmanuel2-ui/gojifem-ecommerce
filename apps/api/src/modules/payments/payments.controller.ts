@@ -1,7 +1,40 @@
-import { Controller, Post, Get, Body, Param, Query, Headers, RawBodyRequest, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Post, Get, Body, Param, Query, Headers } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { CurrencyCode, PaymentProviderName } from '@gojifem/types';
 import { PaymentsService } from './payments.service';
+
+export class InitializePaymentDto {
+  @ApiProperty()
+  @IsString()
+  orderId!: string;
+
+  @ApiProperty()
+  @IsString()
+  orderNumber!: string;
+
+  @ApiProperty()
+  @IsEmail()
+  customerEmail!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  customerName?: string;
+
+  @ApiProperty()
+  @IsNumber()
+  amountMinor!: number;
+
+  @ApiProperty({ enum: ['NGN', 'USD', 'GBP', 'EUR'] })
+  @IsString()
+  currency!: CurrencyCode;
+
+  @ApiProperty({ enum: PaymentProviderName, required: false })
+  @IsOptional()
+  @IsEnum(PaymentProviderName)
+  provider?: PaymentProviderName;
+}
 
 @ApiTags('Payments & Gateways')
 @Controller('payments')
@@ -13,18 +46,8 @@ export class PaymentsController {
     summary: 'Initialize checkout payment session (Paystack/Flutterwave)',
     description: 'Supports local Nigerian channels and international cards (Visa, Mastercard, Amex).',
   })
-  async initialize(
-    @Body()
-    body: {
-      orderId: string;
-      orderNumber: string;
-      customerEmail: string;
-      customerName?: string;
-      amountMinor: number;
-      currency: CurrencyCode;
-      provider?: PaymentProviderName;
-    },
-  ) {
+  async initialize(@Body() body: InitializePaymentDto) {
+    const webUrl = (process.env.WEB_URL || 'http://localhost:3000').split(',')[0].trim().replace(/\/$/, '');
     return this.paymentsService.initializePayment(
       {
         orderId: body.orderId,
@@ -32,11 +55,11 @@ export class PaymentsController {
         customerEmail: body.customerEmail,
         customerName: body.customerName,
         amount: {
-          amount: BigInt(body.amountMinor) as any,
+          amount: BigInt(Math.round(body.amountMinor)) as any,
           currency: body.currency,
         },
         currency: body.currency,
-        callbackUrl: `${process.env.WEB_URL || 'http://localhost:3000'}/checkout/confirmation?orderNumber=${body.orderNumber}`,
+        callbackUrl: `${webUrl}/checkout/confirmation?orderNumber=${body.orderNumber}`,
       },
       body.provider,
     );

@@ -155,9 +155,9 @@ export const SAMPLE_PRODUCTS: ProductData[] = [
     isVendorVerified: true,
     priceMinorNGN: 480000, // ₦4,800
     compareAtPriceMinorNGN: 600000,
-    imageUrl: 'https://images.unsplash.com/photo-1608248597359-0d414a1c5d9a?auto=format&fit=crop&w=800&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?auto=format&fit=crop&w=800&q=80',
     galleryImages: [
-      'https://images.unsplash.com/photo-1608248597359-0d414a1c5d9a?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?auto=format&fit=crop&w=800&q=80',
     ],
     description:
       'Ethically sourced from wild-grown Vitellaria paradoxa trees in Niger State. Cold-pressed, unbleached, and packed with vitamins A and E for hair and skin.',
@@ -184,9 +184,9 @@ export const SAMPLE_PRODUCTS: ProductData[] = [
     vendorLocation: 'Benin City, Edo State',
     isVendorVerified: true,
     priceMinorNGN: 8500000, // ₦85,000
-    imageUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',
     galleryImages: [
-      'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80',
     ],
     description:
       'Authentic lost-wax bronze casting celebrating Queen Idia, mother of Oba Esigie. Cast by descendants of the ancient Benin Royal Bronze Casters Guild.',
@@ -213,9 +213,9 @@ export const SAMPLE_PRODUCTS: ProductData[] = [
     isVendorVerified: true,
     priceMinorNGN: 3850000, // ₦38,500
     compareAtPriceMinorNGN: 4500000,
-    imageUrl: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=800&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80',
     galleryImages: [
-      'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80',
     ],
     description:
       'Compact emergency roadside toolkit with 2000A peak current jump-starter, 150 PSI auto-stop tire compressor, LED emergency strobe, and power bank capabilities.',

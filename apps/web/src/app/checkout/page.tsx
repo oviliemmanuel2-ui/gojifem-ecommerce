@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -19,28 +19,40 @@ import {
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
 import { useMarketplace } from '../../context/MarketplaceContext';
+import { apiFetch } from '../../lib/api';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, cartByVendor, cartSubtotalNGN, formatPrice, clearCart } = useMarketplace();
+  const { cart, cartByVendor, cartSubtotalNGN, currency, formatPrice, clearCart, session, showToast } = useMarketplace();
 
   // Contact & Shipping Address
-  const [firstName, setFirstName] = useState('Chidi');
-  const [lastName, setLastName] = useState('Okafor');
-  const [email, setEmail] = useState('chidi.okafor@example.com');
-  const [phone, setPhone] = useState('+234 801 234 5678');
+  const [firstName, setFirstName] = useState(session?.user?.firstName || '');
+  const [lastName, setLastName] = useState(session?.user?.lastName || '');
+  const [email, setEmail] = useState(session?.user?.email || '');
+  const [phone, setPhone] = useState(session?.user?.phone || '');
   
   const [shippingCountry, setShippingCountry] = useState('NG');
   const [stateRegion, setStateRegion] = useState('Lagos');
-  const [city, setCity] = useState('Lekki Phase 1');
-  const [streetAddress, setStreetAddress] = useState('15 Admiralty Way');
+  const [city, setCity] = useState('');
+  const [streetAddress, setStreetAddress] = useState('');
 
   // Customer Cardholder Billing Country (Decoupled from shipping destination)
   const [billingCountry, setBillingCountry] = useState('US');
 
-  // Payment Channel Selection
+  // Payment Gateway & Channel Selection
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank_transfer'>('card');
+  const [provider, setProvider] = useState<'PAYSTACK' | 'FLUTTERWAVE'>('PAYSTACK');
   const [processing, setProcessing] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session?.user) {
+      setFirstName((prev) => prev || session.user.firstName || '');
+      setLastName((prev) => prev || session.user.lastName || '');
+      setEmail((prev) => prev || session.user.email || '');
+      setPhone((prev) => prev || session.user.phone || '');
+    }
+  }, [session]);
 
   if (cart.length === 0) {
     return (
@@ -69,14 +81,50 @@ export default function CheckoutPage() {
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     setProcessing(true);
+    setCheckoutError(null);
 
-    // In production, this calls POST /api/v1/checkout/quote then /api/v1/checkout/session
-    // Returns Paystack authorizationUrl / checkout modal
-    await new Promise((r) => setTimeout(r, 900));
+    try {
+      const orderNumber = `GOJI-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const paymentInit = await apiFetch<{
+        authorizationUrl?: string;
+        reference?: string;
+      }>('/payments/initialize', {
+        method: 'POST',
+        body: JSON.stringify({
+          orderId: `ord_${Date.now()}`,
+          orderNumber,
+          customerEmail: email.trim(),
+          customerName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          amountMinor: grandTotalNGN,
+          currency: currency === 'NGN' ? 'NGN' : provider === 'FLUTTERWAVE' ? currency : 'NGN',
+          provider,
+        }),
+      });
 
-    setProcessing(false);
-    clearCart();
-    router.push('/checkout/confirmation?orderNumber=GOJI-2026-849201');
+      clearCart();
+      if (
+        paymentInit?.authorizationUrl &&
+        /^https?:\/\//i.test(paymentInit.authorizationUrl) &&
+        !paymentInit.authorizationUrl.includes('sandbox.paystack.co') &&
+        !paymentInit.authorizationUrl.includes('checkout.flutterwave.com/v3/hosted/pay/mock')
+      ) {
+        window.location.href = paymentInit.authorizationUrl;
+        return;
+      }
+
+      const refQuery = paymentInit?.reference ? `&reference=${encodeURIComponent(paymentInit.reference)}` : '';
+      showToast(`Order ${orderNumber} initialized with ${provider}.`, 'success');
+      router.push(`/checkout/confirmation?orderNumber=${orderNumber}${refQuery}`);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Unable to initialize checkout payment. Please review your details and try again.';
+      setCheckoutError(message);
+      showToast(message, 'error');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -295,7 +343,10 @@ export default function CheckoutPage() {
 
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('bank_transfer')}
+                  onClick={() => {
+                    setPaymentMethod('bank_transfer');
+                    setProvider('PAYSTACK');
+                  }}
                   className={`p-4 rounded-2xl border text-left transition flex items-start justify-between ${
                     paymentMethod === 'bank_transfer'
                       ? 'border-ruby bg-rose/40 ring-2 ring-ruby/20'
@@ -313,6 +364,44 @@ export default function CheckoutPage() {
                   <Lock className="w-4 h-4 text-ruby" />
                 </button>
               </div>
+
+              {paymentMethod === 'card' && (
+                <div className="pt-2">
+                  <label className="block text-xs font-bold text-espresso mb-1.5">
+                    Select Payment Gateway
+                  </label>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setProvider('PAYSTACK')}
+                      className={`py-2.5 px-3 rounded-xl border font-bold transition ${
+                        provider === 'PAYSTACK'
+                          ? 'border-ruby bg-white text-ruby ring-2 ring-ruby/20'
+                          : 'border-rose bg-ivory text-espresso'
+                      }`}
+                    >
+                      Paystack (NGN &amp; 3DS Cards)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProvider('FLUTTERWAVE')}
+                      className={`py-2.5 px-3 rounded-xl border font-bold transition ${
+                        provider === 'FLUTTERWAVE'
+                          ? 'border-ruby bg-white text-ruby ring-2 ring-ruby/20'
+                          : 'border-rose bg-ivory text-espresso'
+                      }`}
+                    >
+                      Flutterwave (NGN / USD / GBP / EUR)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {checkoutError && (
+                <div className="p-3 rounded-xl bg-rose/50 border border-ruby/30 text-xs text-ruby font-semibold">
+                  {checkoutError}
+                </div>
+              )}
             </div>
           </div>
 

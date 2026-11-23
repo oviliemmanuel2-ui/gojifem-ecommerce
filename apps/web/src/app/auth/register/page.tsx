@@ -3,11 +3,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Phone, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { User, Mail, Phone, Lock, ArrowRight } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
+import { SocialAuthButtons } from '../../../components/SocialAuthButtons';
+import { apiFetch, StoredSession } from '../../../lib/api';
+import { useMarketplace } from '../../../context/MarketplaceContext';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { setSession, showToast } = useMarketplace();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -24,24 +28,43 @@ export default function RegisterPage() {
       return;
     }
 
+    const sanitizedPhone = phone.replace(/[\s\-()]/g, '').trim();
+    if (sanitizedPhone && !/^\+?[1-9]\d{6,14}$/.test(sanitizedPhone)) {
+      setError('Please enter a valid phone number in international format (e.g. +2348012345678).');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      // In production, this calls POST /api/v1/auth/register
-      await new Promise((r) => setTimeout(r, 600));
+      const response = await apiFetch<StoredSession & { emailVerificationRequired?: boolean }>(
+        '/auth/register',
+        {
+          method: 'POST',
+          skipAuth: true,
+          body: JSON.stringify({
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(),
+            phone: sanitizedPhone || undefined,
+            password,
+          }),
+        },
+      );
 
-      const mockSession = {
-        email,
-        firstName,
-        lastName,
-        roles: ['CUSTOMER'],
-        token: 'mock_jwt_token_' + Date.now(),
-      };
-      localStorage.setItem('gojifem_session', JSON.stringify(mockSession));
+      setSession(response);
+      showToast(
+        'Account created! Please check your email inbox for the verification link.',
+        'success',
+      );
       router.push('/account');
-    } catch {
-      setError('Registration failed. Please verify your details.');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Registration failed. Please verify your details.',
+      );
     } finally {
       setLoading(false);
     }
@@ -56,7 +79,7 @@ export default function RegisterPage() {
           <div className="text-center mb-6">
             <h1 className="text-2xl font-serif font-bold text-espresso">Create Customer Account</h1>
             <p className="text-xs text-espresso/70 mt-1">
-              Shop authentic goods from verified Nigerian merchants with secure escrow protection
+              Shop authentic goods from verified merchants locally &amp; worldwide with secure escrow protection
             </p>
           </div>
 
@@ -65,6 +88,23 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
+
+          {/* Official Google & Apple Sign-Up */}
+          <SocialAuthButtons
+            mode="register"
+            onError={(msg) => setError(msg || null)}
+          />
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-rose" />
+            </div>
+            <div className="relative flex justify-center text-[11px] uppercase">
+              <span className="bg-white px-3 text-espresso/60 font-bold tracking-wider">
+                Or register with email
+              </span>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -121,7 +161,7 @@ export default function RegisterPage() {
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+234 801 234 5678"
+                  placeholder="+2348012345678"
                   className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition"
                 />
                 <Phone className="w-4 h-4 text-espresso/40 absolute left-3 top-3" />
@@ -153,14 +193,14 @@ export default function RegisterPage() {
                   className="mt-0.5 rounded text-ruby focus:ring-ruby"
                 />
                 <span>
-                  I agree to GOJIFEM's{' '}
-                  <a href="#" className="font-semibold text-ruby underline">
+                  I agree to GOJIFEM&apos;s{' '}
+                  <Link href="/terms" className="font-semibold text-ruby underline">
                     Terms of Service
-                  </a>{' '}
+                  </Link>{' '}
                   and{' '}
-                  <a href="#" className="font-semibold text-ruby underline">
+                  <Link href="/privacy" className="font-semibold text-ruby underline">
                     Privacy Policy
-                  </a>
+                  </Link>
                   .
                 </span>
               </label>

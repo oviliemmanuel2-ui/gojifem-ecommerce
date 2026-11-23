@@ -1,6 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import {
+  apiFetch,
+  readStoredSession,
+  writeStoredSession,
+  StoredSession,
+} from '../lib/api';
 
 export type SupportedCurrency = 'NGN' | 'USD' | 'GBP' | 'EUR';
 
@@ -18,6 +24,12 @@ export interface CartItem {
   vendorSlug: string;
 }
 
+export interface ToastMessage {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
 interface MarketplaceContextType {
   currency: SupportedCurrency;
   setCurrency: (c: SupportedCurrency) => void;
@@ -31,6 +43,15 @@ interface MarketplaceContextType {
   totalItems: number;
   cartSubtotalNGN: number;
   cartByVendor: Record<string, { vendorName: string; vendorSlug: string; items: CartItem[]; subtotalNGN: number }>;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  selectedCategory: string | null;
+  setSelectedCategory: (cat: string | null) => void;
+  session: StoredSession | null;
+  sessionReady: boolean;
+  setSession: (next: StoredSession | null) => void;
+  logout: () => Promise<void>;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 // Indicative conversion rates for customer display (authoritative billing remains NGN)
@@ -46,16 +67,38 @@ const MarketplaceContext = createContext<MarketplaceContextType | undefined>(und
 export function MarketplaceProvider({ children }: { children: React.ReactNode }) {
   const [currency, setCurrency] = useState<SupportedCurrency>('NGN');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [session, setSessionState] = useState<StoredSession | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Load cart from localStorage on mount
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      const id = Date.now() + Math.floor(Math.random() * 1000);
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 3600);
+    },
+    [],
+  );
+
+  // Load cart and session from localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('gojifem_cart');
-      if (saved) {
-        setCart(JSON.parse(saved));
+      const savedCart = localStorage.getItem('gojifem_cart');
+      if (savedCart) {
+        setCart(JSON.parse(savedCart));
+      }
+      const savedSession = readStoredSession();
+      if (savedSession) {
+        setSessionState(savedSession);
       }
     } catch {
       // Local storage unavailable
+    } finally {
+      setSessionReady(true);
     }
   }, []);
 
@@ -67,6 +110,22 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       // Ignore
     }
   }, [cart]);
+
+  const setSession = useCallback((next: StoredSession | null) => {
+    writeStoredSession(next);
+    setSessionState(next);
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+    } catch {
+      // Proceed with clearing client session even if network call fails
+    }
+    writeStoredSession(null);
+    setSessionState(null);
+    showToast('You have signed out securely.', 'info');
+  }, [showToast]);
 
   const addToCart = (item: Omit<CartItem, 'quantity'>, qty: number = 1) => {
     setCart((prev) => {
@@ -103,7 +162,6 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const formatPrice = (priceMinorNGN: number): string => {
     const converted = convertPrice(priceMinorNGN);
-    const { symbol } = FX_RATES[currency];
 
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -151,9 +209,48 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         totalItems,
         cartSubtotalNGN,
         cartByVendor,
+        searchQuery,
+        setSearchQuery,
+        selectedCategory,
+        setSelectedCategory,
+        session,
+        sessionReady,
+        setSession,
+        logout,
+        showToast,
       }}
     >
       {children}
+
+      {/* Floating Toast Notifications */}
+      {toasts.length > 0 && (
+        <div
+          aria-live="polite"
+          className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"
+        >
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className={`pointer-events-auto rounded-2xl px-4 py-3 shadow-lg border text-xs font-semibold flex items-center justify-between gap-3 transition-all ${
+                t.type === 'error'
+                  ? 'bg-ruby text-white border-ruby-dark'
+                  : t.type === 'success'
+                    ? 'bg-espresso text-ivory border-gold/60'
+                    : 'bg-white text-espresso border-rose'
+              }`}
+            >
+              <span>{t.message}</span>
+              <button
+                type="button"
+                onClick={() => setToasts((prev) => prev.filter((item) => item.id !== t.id))}
+                className="opacity-70 hover:opacity-100 text-[11px] font-bold"
+              >
+                Dismiss
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </MarketplaceContext.Provider>
   );
 }
