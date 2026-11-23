@@ -131,20 +131,21 @@ async function main() {
 
   const adminRole = await prisma.role.findUnique({ where: { code: 'ADMIN' } });
   if (adminRole) {
-    await prisma.userRole.upsert({
+    const existingAdminRole = await prisma.userRole.findFirst({
       where: {
-        userId_roleId_vendorId: {
-          userId: adminUser.id,
-          roleId: adminRole.id,
-          vendorId: null as any,
-        },
-      },
-      update: {},
-      create: {
         userId: adminUser.id,
         roleId: adminRole.id,
+        vendorId: null,
       },
     });
+    if (!existingAdminRole) {
+      await prisma.userRole.create({
+        data: {
+          userId: adminUser.id,
+          roleId: adminRole.id,
+        },
+      });
+    }
   }
 
   // 6. Seed Sample Verified Vendor

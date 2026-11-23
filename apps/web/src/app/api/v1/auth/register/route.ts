@@ -65,39 +65,43 @@ export async function POST(req: NextRequest) {
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
+    const customerRole = await ensureRole('CUSTOMER', 'Customer Buyer');
+    const verifyToken = crypto.randomBytes(32).toString('hex');
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        phone: phone || null,
-        passwordHash,
-        accountStatus: 'ACTIVE',
-        emailVerified: false,
-        customerProfile: {
-          create: {
-            firstName,
-            lastName,
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          phone: phone || null,
+          passwordHash,
+          accountStatus: 'ACTIVE',
+          emailVerified: false,
+          customerProfile: {
+            create: {
+              firstName,
+              lastName,
+            },
           },
         },
-      },
-    });
+      });
 
-    const customerRole = await ensureRole('CUSTOMER', 'Customer Buyer');
-    await prisma.userRole.create({
-      data: {
-        userId: user.id,
-        roleId: customerRole.id,
-      },
-    });
+      await tx.userRole.create({
+        data: {
+          userId: created.id,
+          roleId: customerRole.id,
+        },
+      });
 
-    await prisma.emailVerificationToken.deleteMany({ where: { email } });
-    const verifyToken = crypto.randomBytes(32).toString('hex');
-    await prisma.emailVerificationToken.create({
-      data: {
-        email,
-        token: verifyToken,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
+      await tx.emailVerificationToken.deleteMany({ where: { email } });
+      await tx.emailVerificationToken.create({
+        data: {
+          email,
+          token: verifyToken,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return created;
     });
 
     const tokens = issueTokenPair(user.id, user.email, ['CUSTOMER'], []);

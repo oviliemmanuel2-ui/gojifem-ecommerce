@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getPrisma, isDatabaseConfigured } from '../../../../lib/server/prisma';
+import {
+  getPoolingHint,
+  getPrisma,
+  isLocalhostDatabaseUrl,
+  resolveDatabaseEnv,
+} from '../../../../lib/server/prisma';
 import { issueTokenPair, verifyJwt } from '../../../../lib/server/jwt';
 import { logServerEvent } from '../../../../lib/server/logger';
 import { isSanityConfigured } from '../../../../sanity/env';
@@ -29,7 +34,11 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 
 export async function GET() {
   const startedAt = Date.now();
-  const dbConfigured = isDatabaseConfigured();
+  const { url: dbUrl, source: dbEnvSource } = resolveDatabaseEnv();
+  const dbConfigured = Boolean(dbUrl);
+  const localhostOnVercel =
+    process.env.VERCEL === '1' && isLocalhostDatabaseUrl(dbUrl);
+  const poolingHint = getPoolingHint(dbUrl);
 
   let dbStatus: 'operational' | 'not_configured' | 'outage' = 'not_configured';
   let legacyDbState: 'connected' | 'not_configured' | 'unreachable' = 'not_configured';
@@ -39,7 +48,12 @@ export async function GET() {
   let authTableReady = false;
   let authTableError: string | undefined;
 
-  if (dbConfigured) {
+  if (localhostOnVercel) {
+    dbStatus = 'outage';
+    legacyDbState = 'unreachable';
+    dbError =
+      'DATABASE_URL points to localhost, which is unreachable from Vercel serverless functions.';
+  } else if (dbConfigured) {
     const dbStart = Date.now();
     try {
       const prisma = getPrisma();
@@ -114,6 +128,9 @@ export async function GET() {
       database: {
         status: dbStatus,
         configured: dbConfigured,
+        envSource: dbEnvSource,
+        poolingHint,
+        schemaMigrated: authTableReady,
         latencyMs: dbLatencyMs,
         ...(dbError ? { error: dbError } : {}),
       },

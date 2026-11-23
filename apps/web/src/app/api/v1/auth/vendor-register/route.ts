@@ -72,57 +72,61 @@ export async function POST(req: NextRequest) {
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
+    const vendorRole = await ensureRole('VENDOR_OWNER', 'Merchant Owner');
+    const verifyToken = crypto.randomBytes(32).toString('hex');
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        phone,
-        passwordHash,
-        accountStatus: 'ACTIVE',
-        emailVerified: false,
-        ownedVendors: {
-          create: {
-            legalName,
-            displayName,
-            slug: uniqueSlug,
-            status: 'DRAFT',
-            commissionRateBps: 1000,
-            description: body.operatingLocation ? `Located in ${body.operatingLocation}` : undefined,
+    const { user, vendor } = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email,
+          phone,
+          passwordHash,
+          accountStatus: 'ACTIVE',
+          emailVerified: false,
+          ownedVendors: {
+            create: {
+              legalName,
+              displayName,
+              slug: uniqueSlug,
+              status: 'DRAFT',
+              commissionRateBps: 1000,
+              description: body.operatingLocation ? `Located in ${body.operatingLocation}` : undefined,
+            },
           },
         },
-      },
-      include: {
-        ownedVendors: true,
-      },
-    });
+        include: {
+          ownedVendors: true,
+        },
+      });
 
-    const vendor = user.ownedVendors[0];
+      const createdVendor = createdUser.ownedVendors[0];
 
-    await prisma.vendorMembership.create({
-      data: {
-        vendorId: vendor.id,
-        userId: user.id,
-        role: 'OWNER',
-      },
-    });
+      await tx.vendorMembership.create({
+        data: {
+          vendorId: createdVendor.id,
+          userId: createdUser.id,
+          role: 'OWNER',
+        },
+      });
 
-    const vendorRole = await ensureRole('VENDOR_OWNER', 'Merchant Owner');
-    await prisma.userRole.create({
-      data: {
-        userId: user.id,
-        roleId: vendorRole.id,
-        vendorId: vendor.id,
-      },
-    });
+      await tx.userRole.create({
+        data: {
+          userId: createdUser.id,
+          roleId: vendorRole.id,
+          vendorId: createdVendor.id,
+        },
+      });
 
-    await prisma.emailVerificationToken.deleteMany({ where: { email } });
-    const verifyToken = crypto.randomBytes(32).toString('hex');
-    await prisma.emailVerificationToken.create({
-      data: {
-        email,
-        token: verifyToken,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
+      await tx.emailVerificationToken.deleteMany({ where: { email } });
+      await tx.emailVerificationToken.create({
+        data: {
+          email,
+          token: verifyToken,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return { user: createdUser, vendor: createdVendor };
     });
 
     const tokens = issueTokenPair(user.id, user.email, ['VENDOR_OWNER'], [vendor.id]);
