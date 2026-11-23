@@ -18,6 +18,7 @@
     "db:migrate:status": "prisma migrate status --schema=packages/database/prisma/schema.prisma",
     "db:verify": "node scripts/verify-database.mjs",
     "db:seed": "npm run --workspace=@gojifem/database seed",
+    "admin:promote": "node scripts/promote-admin.mjs",
     "dev:api": "npm run --workspace=@gojifem/api start:dev",
     "dev:web": "npm run --workspace=@gojifem/web dev",
     "dev:mobile": "npm run --workspace=@gojifem/mobile start",

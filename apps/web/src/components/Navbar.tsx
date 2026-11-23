@@ -71,6 +71,9 @@ export function Navbar() {
   const isVendor = Boolean(
     session?.user?.roles?.some((r) => r === 'VENDOR_OWNER' || r === 'VENDOR_STAFF'),
   );
+  const isAdmin = Boolean(
+    session?.user?.roles?.some((r) => r === 'ADMIN' || r === 'MODERATOR'),
+  );
 
   return (
     <>
@@ -200,12 +203,30 @@ export function Navbar() {
                       My Account &amp; Orders
                     </Link>
                     {isVendor && (
+                      <>
+                        <Link
+                          href="/vendor/apply"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="block px-3.5 py-2 font-semibold text-espresso hover:bg-rose/30 hover:text-ruby transition"
+                        >
+                          Merchant Onboarding
+                        </Link>
+                        <Link
+                          href="/vendor/products"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="block px-3.5 py-2 font-semibold text-espresso hover:bg-rose/30 hover:text-ruby transition"
+                        >
+                          Vendor Portal
+                        </Link>
+                      </>
+                    )}
+                    {isAdmin && (
                       <Link
-                        href="/vendor/products"
+                        href="/admin/vendors"
                         onClick={() => setUserMenuOpen(false)}
-                        className="block px-3.5 py-2 font-semibold text-espresso hover:bg-rose/30 hover:text-ruby transition"
+                        className="block px-3.5 py-2 font-semibold text-ruby hover:bg-rose/30 transition"
                       >
-                        Vendor Portal
+                        Admin Verification Dashboard
                       </Link>
                     )}
                     <button
@@ -324,6 +345,33 @@ export function Navbar() {
                   >
                     My Account ({displayName})
                   </Link>
+                  {isVendor && (
+                    <>
+                      <Link
+                        href="/vendor/apply"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-3 py-2 rounded-xl bg-white border border-rose text-espresso hover:text-ruby"
+                      >
+                        Merchant Onboarding
+                      </Link>
+                      <Link
+                        href="/vendor/products"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-3 py-2 rounded-xl bg-white border border-rose text-espresso hover:text-ruby"
+                      >
+                        Vendor Portal
+                      </Link>
+                    </>
+                  )}
+                  {isAdmin && (
+                    <Link
+                      href="/admin/vendors"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="px-3 py-2 rounded-xl bg-rose/40 border border-ruby/30 text-ruby"
+                    >
+                      Admin Verification Dashboard
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={handleLogout}

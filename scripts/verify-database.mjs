@@ -42,6 +42,14 @@ const EXPECTED_TABLES = [
   'outbox_events',
   'audit_logs',
   'idempotency_keys',
+  'merchants',
+  'merchant_business_profiles',
+  'merchant_kyc_documents',
+  'merchant_bank_accounts',
+  'merchant_applications',
+  'merchant_verification_records',
+  'merchant_application_status_history',
+  'merchant_notifications',
 ];
 
 const dbUrl = (

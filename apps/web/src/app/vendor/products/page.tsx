@@ -1,224 +1,299 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { 
-  Package, 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit3, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle,
-  ArrowRight
-} from 'lucide-react';
-import { Navbar } from '../../../components/Navbar';
+import { Lock, Package, Plus, RefreshCw, ShieldCheck, ShoppingBag } from 'lucide-react';
 import { useMarketplace } from '../../../context/MarketplaceContext';
+import { ApiError, apiFetch } from '../../../lib/api';
+import { Spinner } from '../../../components/ui/Spinner';
+import { ErrorRetryBanner } from '../../../components/ui/ErrorRetryBanner';
 
-interface VendorProductItem {
+interface MerchantProductRow {
   id: string;
+  variantId: string | null;
   sku: string;
   title: string;
+  slug: string;
   category: string;
   priceMinorNGN: number;
   stockCount: number;
-  status: 'ACTIVE' | 'PENDING_REVIEW' | 'DRAFT' | 'PAUSED';
+  status: string;
   imageUrl: string;
 }
 
-const INITIAL_VENDOR_PRODUCTS: VendorProductItem[] = [
-  {
-    id: 'vp_1',
-    sku: 'ASO-OKE-ROYAL-M',
-    title: 'Handcrafted Luxury Aso-Oke Agbada & Fila Set (Medium)',
-    category: 'Fashion & Apparel',
-    priceMinorNGN: 14500000, // ₦145,000
-    stockCount: 14,
-    status: 'ACTIVE',
-    imageUrl: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'vp_2',
-    sku: 'ASO-OKE-GOLD-L',
-    title: 'Woven Metallic Gold Shimmery Iro & Buba Set',
-    category: 'Fashion & Apparel',
-    priceMinorNGN: 12000000, // ₦120,000
-    stockCount: 8,
-    status: 'ACTIVE',
-    imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    id: 'vp_3',
-    sku: 'ASO-OKE-CAP-EMB',
-    title: 'Embroidered Gobi Cap with Hand-Stitched Royal Filigree',
-    category: 'Fashion & Apparel',
-    priceMinorNGN: 1850000, // ₦18,500
-    stockCount: 30,
-    status: 'PENDING_REVIEW',
-    imageUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=400&q=80',
-  },
-];
-
 export default function VendorProductsPage() {
-  const { formatPrice } = useMarketplace();
-  const [products, setProducts] = useState<VendorProductItem[]>(INITIAL_VENDOR_PRODUCTS);
-  const [search, setSearch] = useState('');
+  const { session, sessionReady, formatPrice, showToast } = useMarketplace();
+  const [products, setProducts] = useState<MerchantProductRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [verificationLockMessage, setVerificationLockMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = products.filter(
-    (p) =>
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase()),
-  );
+  const fetchProducts = useCallback(async () => {
+    if (!session?.accessToken) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setVerificationLockMessage(null);
+    try {
+      const res = await apiFetch<{ merchantStatus: string; products: MerchantProductRow[] }>(
+        '/merchant/products',
+        { method: 'GET', timeoutMs: 12000 },
+      );
+      setProducts(res.products);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.statusCode === 403) {
+        setVerificationLockMessage(err.message);
+      } else if (err instanceof ApiError && err.statusCode === 401) {
+        setError('Please sign in with your merchant account to view your catalog.');
+      } else {
+        setError(err instanceof ApiError ? err.message : 'Unable to load merchant products.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.accessToken]);
 
-  const handleQuickStockUpdate = (id: string, delta: number) => {
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, stockCount: Math.max(0, p.stockCount + delta) } : p,
-      ),
-    );
+  useEffect(() => {
+    if (!sessionReady) return;
+    if (session?.accessToken) {
+      void fetchProducts();
+    } else {
+      setLoading(false);
+    }
+  }, [sessionReady, session?.accessToken, fetchProducts]);
+
+  const handleAdjustStock = async (productId: string, delta: number) => {
+    setUpdatingId(productId);
+    try {
+      const res = await apiFetch<{ id: string; stockCount: number }>(
+        `/merchant/products/${productId}/stock`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ delta }),
+        },
+      );
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, stockCount: res.stockCount } : p)),
+      );
+      showToast('Inventory updated.', 'success');
+    } catch (err: unknown) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to update stock.', 'error');
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col bg-ivory text-espresso">
-      <Navbar />
+  if (!sessionReady || (loading && session?.accessToken && !verificationLockMessage)) {
+    return (
+      <div className="bg-ivory min-h-screen py-16 px-4 flex items-center justify-center">
+        <div className="bg-white rounded-3xl border border-rose p-10 flex flex-col items-center gap-3">
+          <Spinner size="lg" tone="ruby" label="Loading merchant products" />
+          <p className="text-sm font-semibold text-espresso-muted">Loading Vendor Catalog...</p>
+        </div>
+      </div>
+    );
+  }
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-ruby uppercase tracking-wider mb-1">
-              <ShieldCheck className="w-4 h-4 text-gold" />
-              <span>Merchant Inventory Portal</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-espresso">
-              Product Catalog & Stock Management
-            </h1>
-            <p className="text-xs sm:text-sm text-espresso/70 mt-1">
-              Manage variants, update real-time warehouse stock, and track listing moderation states
-            </p>
-          </div>
-
+  if (!session?.accessToken) {
+    return (
+      <div className="bg-ivory min-h-screen py-16 px-4">
+        <div className="max-w-lg mx-auto bg-white rounded-3xl border border-rose p-8 text-center space-y-4">
+          <ShieldCheck className="w-10 h-10 text-ruby mx-auto" />
+          <h1 className="font-serif text-2xl font-bold text-espresso">Vendor Portal Sign-In</h1>
+          <p className="text-xs text-espresso-muted">
+            Sign in with your verified GOJIFEM merchant account to manage products and inventory.
+          </p>
           <Link
-            href="/vendor/products/new"
-            className="self-start sm:self-auto px-5 py-2.5 bg-ruby text-white rounded-xl text-xs font-bold hover:bg-ruby-hover transition flex items-center gap-1.5 shadow-md shadow-ruby/20"
+            href="/auth/login?redirect=/vendor/products"
+            className="inline-block px-6 py-3 rounded-full bg-ruby text-white text-xs font-bold hover:bg-ruby-hover transition"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add New Product Listing</span>
+            Sign In to Vendor Portal
           </Link>
         </div>
+      </div>
+    );
+  }
 
-        {/* Filter & Search Bar */}
-        <div className="bg-white rounded-2xl border border-rose p-4 shadow-sm mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
-          <div className="relative w-full sm:max-w-md">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter by product title or SKU..."
-              className="w-full pl-9 pr-4 py-2 border border-rose rounded-xl text-xs bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby"
-            />
-            <Search className="w-4 h-4 text-espresso/40 absolute left-3 top-2.5" />
+  if (verificationLockMessage) {
+    return (
+      <div className="bg-ivory min-h-screen py-14 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto bg-white rounded-3xl border border-rose p-8 sm:p-10 shadow-sm text-center space-y-5">
+          <div className="w-14 h-14 rounded-full bg-gold/20 text-espresso flex items-center justify-center mx-auto">
+            <Lock className="w-7 h-7" />
           </div>
+          <span className="inline-block text-xs font-bold uppercase tracking-widest text-ruby bg-rose px-3.5 py-1 rounded-full">
+            Verification Required
+          </span>
+          <h1 className="font-serif text-3xl font-bold text-espresso">
+            Merchant Account Pending Verification
+          </h1>
+          <p className="text-sm text-espresso-muted leading-relaxed">{verificationLockMessage}</p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
+            <Link
+              href="/vendor/apply"
+              className="px-6 py-3 rounded-full bg-ruby text-white text-xs font-bold hover:bg-ruby-hover transition"
+            >
+              View / Complete Onboarding Application
+            </Link>
+            <button
+              type="button"
+              onClick={() => void fetchProducts()}
+              className="inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-full border border-rose text-xs font-bold text-espresso hover:border-ruby"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Check Activation Status
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-          <div className="flex items-center gap-2 text-xs text-espresso/70 self-end sm:self-auto font-medium">
-            <span>Showing {filtered.length} listings</span>
+  return (
+    <div className="bg-ivory min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-ruby bg-rose px-3 py-1 rounded-full mb-2">
+              Verified Vendor Portal
+            </span>
+            <h1 className="font-serif text-3xl font-bold text-espresso">My Product Catalog</h1>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/vendor/orders"
+              className="px-5 py-2.5 rounded-full border border-espresso/20 text-espresso font-bold text-xs hover:border-ruby hover:text-ruby transition flex items-center gap-2"
+            >
+              <ShoppingBag className="w-4 h-4" /> Fulfillment Orders
+            </Link>
+            <Link
+              href="/vendor/products/new"
+              className="px-5 py-2.5 rounded-full bg-ruby text-white font-bold text-xs hover:bg-ruby-hover transition flex items-center gap-2 shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> Add New Product
+            </Link>
           </div>
         </div>
 
-        {/* Inventory Table */}
-        <div className="bg-white rounded-3xl border border-rose shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-espresso">
-              <thead className="bg-rose/30 text-[11px] uppercase font-bold text-espresso/70 border-b border-rose">
-                <tr>
-                  <th className="py-3.5 px-4 sm:px-6">Product</th>
-                  <th className="py-3.5 px-4">SKU</th>
-                  <th className="py-3.5 px-4">Price (NGN)</th>
-                  <th className="py-3.5 px-4">Warehouse Stock</th>
-                  <th className="py-3.5 px-4">Listing Status</th>
-                  <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-rose/60">
-                {filtered.map((product) => (
-                  <tr key={product.id} className="hover:bg-rose/20 transition">
-                    <td className="py-4 px-4 sm:px-6 flex items-center gap-3">
-                      <img
-                        src={product.imageUrl}
-                        alt={product.title}
-                        className="w-12 h-12 rounded-xl object-cover bg-ivory border border-rose shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <strong className="text-espresso font-serif block truncate max-w-xs sm:max-w-md">
-                          {product.title}
-                        </strong>
-                        <span className="text-[11px] text-espresso/50">{product.category}</span>
-                      </div>
-                    </td>
+        {error && <ErrorRetryBanner title="Error loading products" message={error} onRetry={fetchProducts} />}
 
-                    <td className="py-4 px-4 font-mono font-bold text-espresso/80">
-                      {product.sku}
-                    </td>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl border border-rose p-5">
+            <span className="text-xs font-bold text-espresso-muted uppercase">Live Listings</span>
+            <p className="text-2xl font-serif font-bold text-espresso mt-1">
+              {products.filter((p) => p.status === 'ACTIVE').length}
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl border border-rose p-5">
+            <span className="text-xs font-bold text-espresso-muted uppercase">Total Stock Units</span>
+            <p className="text-2xl font-serif font-bold text-ruby mt-1">
+              {products.reduce((acc, p) => acc + p.stockCount, 0)}
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl border border-rose p-5">
+            <span className="text-xs font-bold text-espresso-muted uppercase">Verification Status</span>
+            <p className="text-sm font-bold text-emerald-700 mt-2">Verified Active Merchant</p>
+          </div>
+        </div>
 
-                    <td className="py-4 px-4 font-serif font-bold text-espresso">
-                      {formatPrice(product.priceMinorNGN)}
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleQuickStockUpdate(product.id, -1)}
-                          className="w-6 h-6 rounded border border-rose bg-ivory hover:bg-rose/40 flex items-center justify-center font-bold text-espresso"
-                        >
-                          -
-                        </button>
-                        <span className="font-bold text-espresso px-1">{product.stockCount}</span>
-                        <button
-                          onClick={() => handleQuickStockUpdate(product.id, 1)}
-                          className="w-6 h-6 rounded border border-rose bg-ivory hover:bg-rose/40 flex items-center justify-center font-bold text-espresso"
-                        >
-                          +
-                        </button>
-                        {product.stockCount <= 5 && (
-                          <span className="text-[10px] text-ruby font-bold ml-1">Low</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      {product.status === 'ACTIVE' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose text-ruby border border-rose">
-                          <CheckCircle2 className="w-3 h-3 text-ruby" />
-                          <span>Active / Selling</span>
-                        </span>
-                      )}
-                      {product.status === 'PENDING_REVIEW' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/40 text-espresso border border-gold/40">
-                          <Clock className="w-3 h-3 text-espresso" />
-                          <span>Staff Moderation</span>
-                        </span>
-                      )}
-                      {product.status === 'DRAFT' && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-ivory text-espresso/70 border border-rose">
-                          <span>Draft</span>
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-4 px-4 sm:px-6 text-right">
-                      <button className="p-1.5 hover:bg-rose/40 rounded-lg text-espresso/60 hover:text-ruby transition">
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                    </td>
+        <div className="bg-white rounded-3xl border border-rose overflow-hidden shadow-sm">
+          {products.length === 0 ? (
+            <div className="p-12 text-center space-y-4">
+              <Package className="w-10 h-10 text-ruby/40 mx-auto" />
+              <h2 className="font-serif text-xl font-bold text-espresso">No Products Listed Yet</h2>
+              <p className="text-xs text-espresso-muted max-w-md mx-auto">
+                Your merchant store is verified and active. Publish your first product to start accepting customer orders on GOJIFEM.
+              </p>
+              <Link
+                href="/vendor/products/new"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-ruby text-white text-xs font-bold hover:bg-ruby-hover transition"
+              >
+                <Plus className="w-4 h-4" /> List Your First Product
+              </Link>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-ivory-200 text-xs font-bold uppercase text-espresso-muted border-b border-rose">
+                    <th className="py-4 px-5">Product</th>
+                    <th className="py-4 px-4">SKU</th>
+                    <th className="py-4 px-4">Category</th>
+                    <th className="py-4 px-4">Price</th>
+                    <th className="py-4 px-4">Stock</th>
+                    <th className="py-4 px-4">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-rose text-sm">
+                  {products.map((product) => (
+                    <tr key={product.id} className="hover:bg-ivory/60 transition">
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.title}
+                            className="w-11 h-11 rounded-lg object-cover border border-rose shrink-0"
+                          />
+                          <span className="font-semibold text-espresso line-clamp-1">
+                            {product.title}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 font-mono text-xs text-espresso-muted">
+                        {product.sku}
+                      </td>
+                      <td className="py-4 px-4 text-xs text-espresso-muted">{product.category}</td>
+                      <td className="py-4 px-4 font-bold text-ruby">
+                        {formatPrice(product.priceMinorNGN)}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={updatingId === product.id}
+                            onClick={() => void handleAdjustStock(product.id, -1)}
+                            className="w-6 h-6 rounded border border-rose hover:bg-rose/40 text-xs font-bold disabled:opacity-50"
+                          >
+                            -
+                          </button>
+                          <span
+                            className={`font-semibold text-xs ${
+                              product.stockCount === 0 ? 'text-ruby font-bold' : ''
+                            }`}
+                          >
+                            {product.stockCount}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={updatingId === product.id}
+                            onClick={() => void handleAdjustStock(product.id, 1)}
+                            className="w-6 h-6 rounded border border-rose hover:bg-rose/40 text-xs font-bold disabled:opacity-50"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                            product.status === 'ACTIVE'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-gold/20 text-espresso'
+                          }`}
+                        >
+                          {product.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

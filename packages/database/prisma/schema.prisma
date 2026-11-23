@@ -114,6 +114,67 @@ enum OutboxStatus {
   FAILED
 }
 
+enum MerchantAccountStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum MerchantRegistrationType {
+  CAC_RC
+  CAC_BN
+  SOLE_PROPRIETOR
+  OTHER
+}
+
+enum MerchantApplicationStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  UNDER_VERIFICATION
+  APPROVED
+  REJECTED
+  MORE_INFORMATION_REQUIRED
+  SUSPENDED
+}
+
+enum MerchantKycDocumentType {
+  CAC_CERTIFICATE
+  BUSINESS_REGISTRATION
+  TIN_CERTIFICATE
+  GOVERNMENT_ID
+  UTILITY_BILL
+  ADDITIONAL_REQUESTED
+  OTHER
+}
+
+enum MerchantKycDocumentStatus {
+  UPLOADED
+  UNDER_VERIFICATION
+  VERIFIED
+  REJECTED
+  REPLACED
+}
+
+enum BankVerificationStatus {
+  UNVERIFIED
+  PENDING_VERIFICATION
+  VERIFIED
+  FAILED
+}
+
+enum MerchantNotificationType {
+  APPLICATION_SUBMITTED
+  PENDING_REVIEW
+  UNDER_VERIFICATION
+  ADDITIONAL_DOCUMENTS_REQUESTED
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
+  ACCOUNT_ACTIVATED
+  ACCOUNT_SUSPENDED
+}
+
 // ----------------------------------------------------
 // IDENTITY & USERS
 // ----------------------------------------------------
@@ -136,6 +197,8 @@ model User {
   orders             Order[]
   auditLogs          AuditLog[]
   oauthAccounts      OAuthAccount[]
+  merchants             Merchant[]
+  merchantNotifications MerchantNotification[]
 
   @@map("users")
 }
@@ -276,6 +339,7 @@ model Vendor {
   vendorOrders       VendorOrder[]
   userRoles          UserRole[]
   payouts            Payout[]
+  merchant           Merchant?
 
   @@map("vendors")
 }
@@ -702,4 +766,206 @@ model IdempotencyKey {
   expiresAt          DateTime
 
   @@map("idempotency_keys")
+}
+
+// ----------------------------------------------------
+// MERCHANT ONBOARDING, KYC VAULT & VERIFICATION WORKFLOW
+// ----------------------------------------------------
+model Merchant {
+  id                    String                @id @default(uuid())
+  ownerUserId           String
+  vendorId              String?               @unique
+  merchantCode          String                @unique
+  accountStatus         MerchantAccountStatus @default(PENDING_ACTIVATION)
+  isVerified            Boolean               @default(false)
+  canListProducts       Boolean               @default(false)
+  canManageInventory    Boolean               @default(false)
+  canReceiveOrders      Boolean               @default(false)
+  canReceiveSettlements Boolean               @default(false)
+  commissionRateBps     Int                   @default(1000)
+  activatedAt           DateTime?
+  suspendedAt           DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  owner               User                         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  vendor              Vendor?                      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  businessProfile     MerchantBusinessProfile?
+  kycDocuments        MerchantKycDocument[]
+  bankAccounts        MerchantBankAccount[]
+  applications        MerchantApplication[]
+  verificationRecords MerchantVerificationRecord[]
+  notifications       MerchantNotification[]
+
+  @@index([ownerUserId])
+  @@index([accountStatus])
+  @@map("merchants")
+}
+
+model MerchantBusinessProfile {
+  id                    String                   @id @default(uuid())
+  merchantId            String                   @unique
+  businessName          String
+  displayName           String
+  registrationType      MerchantRegistrationType @default(CAC_RC)
+  cacRegistrationNumber String?                  @unique
+  tinEncrypted          String?
+  tinMasked             String?
+  businessAddress       String?
+  businessPhone         String?
+  businessEmail         String?
+  ownerFullName         String?
+  businessDescription   String?
+  businessCategory      String?
+  countryCode           String                   @default("NG")
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([businessName])
+  @@map("merchant_business_profiles")
+}
+
+model MerchantKycDocument {
+  id               String                    @id @default(uuid())
+  merchantId       String
+  applicationId    String
+  documentType     MerchantKycDocumentType
+  fileName         String
+  mimeType         String
+  fileSizeBytes    Int
+  sha256Checksum   String
+  storageProvider  String                    @default("SUPABASE_PRIVATE")
+  storageBucket    String?
+  storageKey       String                    @unique
+  encryptedPayload Bytes?
+  status           MerchantKycDocumentStatus @default(UPLOADED)
+  reviewNotes      String?
+  uploadedByUserId String
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  merchant    Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  application MerchantApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, status])
+  @@index([applicationId])
+  @@map("merchant_kyc_documents")
+}
+
+model MerchantBankAccount {
+  id                     String                 @id @default(uuid())
+  merchantId             String
+  countryCode            String                 @default("NG")
+  bankName               String
+  bankCode               String?
+  swiftBic               String?
+  routingOrIbanEncrypted String?
+  accountNumberEncrypted String
+  accountNumberMasked    String
+  accountLast4           String
+  accountHolderName      String
+  verifiedAccountName    String?
+  settlementCurrency     String                 @default("NGN")
+  accountType            String                 @default("BUSINESS")
+  verificationStatus     BankVerificationStatus @default(UNVERIFIED)
+  verificationProvider   String?
+  verificationMessage    String?
+  verifiedAt             DateTime?
+  isPrimary              Boolean                @default(true)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, isPrimary])
+  @@map("merchant_bank_accounts")
+}
+
+model MerchantApplication {
+  id                String                    @id @default(uuid())
+  merchantId        String
+  referenceNumber   String                    @unique
+  status            MerchantApplicationStatus @default(DRAFT)
+  currentStep       Int                       @default(1)
+  termsAccepted     Boolean                   @default(false)
+  termsAcceptedAt   DateTime?
+  accuracyConfirmed Boolean                   @default(false)
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedByUserId  String?
+  rejectionReason   String?
+  requestedInfoNote String?
+  adminNotes        String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  merchant            Merchant                           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  kycDocuments        MerchantKycDocument[]
+  verificationRecords MerchantVerificationRecord[]
+  statusHistory       MerchantApplicationStatusHistory[]
+  notifications       MerchantNotification[]
+
+  @@index([status, submittedAt])
+  @@index([merchantId])
+  @@map("merchant_applications")
+}
+
+model MerchantVerificationRecord {
+  id                String   @id @default(uuid())
+  merchantId        String
+  applicationId     String
+  verificationType  String   // CAC, TIN, BANK_ACCOUNT, ADMIN_COMPLIANCE
+  status            String   // PASSED, PENDING, FAILED, INFO_REQUESTED
+  provider          String?
+  performedByUserId String?
+  summary           String
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  merchant    Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  application MerchantApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+  @@map("merchant_verification_records")
+}
+
+model MerchantApplicationStatusHistory {
+  id              String                     @id @default(uuid())
+  applicationId   String
+  fromStatus      MerchantApplicationStatus?
+  toStatus        MerchantApplicationStatus
+  changedByUserId String?
+  changedByRole   String?
+  reason          String?
+  notes           String?
+  createdAt       DateTime                   @default(now())
+
+  application MerchantApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+  @@map("merchant_application_status_history")
+}
+
+model MerchantNotification {
+  id            String                   @id @default(uuid())
+  merchantId    String
+  userId        String
+  applicationId String?
+  type          MerchantNotificationType
+  title         String
+  message       String
+  isRead        Boolean                  @default(false)
+  readAt        DateTime?
+  createdAt     DateTime                 @default(now())
+
+  merchant    Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application MerchantApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt])
+  @@map("merchant_notifications")
 }
