@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { Mail, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
 import { apiFetch } from '../../../lib/api';
+import { useMarketplace } from '../../../context/MarketplaceContext';
 
 export default function ForgotPasswordPage() {
+  const { showToast } = useMarketplace();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -24,10 +26,13 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email: email.trim() }),
       });
       setSubmitted(true);
+      showToast('If an account matches that email, a reset link has been sent.', 'success', {
+        category: 'auth',
+      });
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to process password reset request.',
-      );
+      const msg = err instanceof Error ? err.message : 'Unable to process password reset request.';
+      setError(msg);
+      showToast(msg, 'error', { category: 'auth' });
     } finally {
       setLoading(false);
     }

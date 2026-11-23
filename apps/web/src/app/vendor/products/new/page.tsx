@@ -39,7 +39,9 @@ export default function NewVendorProductPage() {
     const parsedPrice = Number(priceNGN);
     const parsedStock = Number(stock);
     if (!title.trim() || !description.trim() || !sku.trim() || parsedPrice <= 0 || parsedStock < 1) {
-      setError('Complete title, description, SKU, positive NGN price, and initial stock.');
+      const msg = 'Complete title, description, SKU, positive NGN price, and initial stock.';
+      setError(msg);
+      showToast(msg, 'warning', { category: 'merchant' });
       return;
     }
 
@@ -62,12 +64,17 @@ export default function NewVendorProductPage() {
         },
       );
       setCreatedProduct(res.product);
-      showToast(`"${res.product.title}" published to GOJIFEM!`, 'success');
+      showToast(`"${res.product.title}" published to GOJIFEM!`, 'success', {
+        category: 'merchant',
+      });
     } catch (err: unknown) {
       if (err instanceof ApiError && err.statusCode === 403) {
         setVerificationError(err.message);
+        showToast(err.message, 'warning', { category: 'merchant' });
       } else {
-        setError(err instanceof ApiError ? err.message : 'Unable to create product listing.');
+        const msg = err instanceof ApiError ? err.message : 'Unable to create product listing.';
+        setError(msg);
+        showToast(msg, 'error', { category: 'merchant' });
       }
     } finally {
       setSubmitting(false);

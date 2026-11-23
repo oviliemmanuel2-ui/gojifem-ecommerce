@@ -46,13 +46,14 @@ function GoogleCallbackContent() {
             ? 'Signed in with Google! Returning you to checkout.'
             : 'Signed in with Google successfully!',
           'success',
+          { category: 'auth', dedupeKey: 'auth-oauth-google' },
         );
         router.replace(target);
       } catch (err: unknown) {
         if (cancelled) return;
-        setError(
-          err instanceof Error ? err.message : 'Unable to complete Google Sign-In.',
-        );
+        const msg = err instanceof Error ? err.message : 'Unable to complete Google Sign-In.';
+        setError(msg);
+        showToast(msg, 'error', { category: 'auth', dedupeKey: 'auth-oauth-google-err' });
       }
     })();
 

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 import {
   apiFetch,
   readStoredSession,
@@ -10,7 +9,13 @@ import {
 } from '../lib/api';
 import { mergeCartItems } from '../lib/cartMerge';
 import { logOperationalEvent } from '../lib/logger';
+import { useNotifications } from './NotificationContext';
 import { useSystemHealth } from './SystemHealthContext';
+import type {
+  NotificationCategory,
+  NotificationOptions,
+  NotificationTone,
+} from '../lib/notificationQueue';
 import type { SanitySiteSettings } from '../sanity/lib/fetch';
 
 export type CartSyncStatus = 'idle' | 'syncing' | 'synced' | 'pending_sync';
@@ -31,21 +36,9 @@ export interface CartItem {
   vendorSlug: string;
 }
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
-
-export interface ToastOptions {
-  actionLabel?: string;
-  onAction?: () => void;
-  durationMs?: number;
-}
-
-export interface ToastMessage {
-  id: number;
-  message: string;
-  type: ToastType;
-  actionLabel?: string;
-  onAction?: () => void;
-}
+export type ToastType = NotificationTone;
+export type ToastCategory = NotificationCategory;
+export type ToastOptions = NotificationOptions;
 
 interface MarketplaceContextType {
   currency: SupportedCurrency;
@@ -167,13 +160,13 @@ export function MarketplaceProvider({
   initialSiteSettings?: SanitySiteSettings | null;
 }) {
   const { isOnline, status: healthStatus } = useSystemHealth();
+  const { notify } = useNotifications();
   const [currency, setCurrency] = useState<SupportedCurrency>('NGN');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [session, setSessionState] = useState<StoredSession | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [cartPulseKey, setCartPulseKey] = useState(0);
   const [syncingVariantId, setSyncingVariantId] = useState<string | null>(null);
   const [cartSyncStatus, setCartSyncStatus] = useState<CartSyncStatus>('idle');
@@ -197,24 +190,9 @@ export function MarketplaceProvider({
       type: ToastType = 'info',
       options?: ToastOptions,
     ) => {
-      const id = Date.now() + Math.floor(Math.random() * 1000);
-      const durationMs =
-        options?.durationMs ?? (type === 'error' || type === 'warning' ? 4500 : 3500);
-      setToasts((prev) => [
-        ...prev.slice(-3),
-        {
-          id,
-          message,
-          type,
-          actionLabel: options?.actionLabel,
-          onAction: options?.onAction,
-        },
-      ]);
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, durationMs);
+      notify(message, type, options);
     },
-    [],
+    [notify],
   );
 
   // Load saved session, favourites & merge guest cart safely on mount
@@ -315,7 +293,10 @@ export function MarketplaceProvider({
     } catch {
       // Ignore
     }
-    showToast('You have signed out securely.', 'info');
+    showToast('You have signed out securely.', 'info', {
+      category: 'auth',
+      dedupeKey: 'auth-logout',
+    });
   }, [showToast]);
 
   const syncCartWithServer = useCallback(
@@ -348,7 +329,10 @@ export function MarketplaceProvider({
         writePendingSyncFlag(false);
         setCartSyncStatus('synced');
         if (showRecoveryToast) {
-          showToast('Connection restored — your saved shopping cart is synced.', 'success');
+          showToast('Connection restored — your saved shopping cart is synced.', 'success', {
+            category: 'cart',
+            dedupeKey: 'cart-recovery-sync',
+          });
         }
       } catch (err: unknown) {
         writePendingSyncFlag(true);
@@ -457,6 +441,7 @@ export function MarketplaceProvider({
           ? `Removed ${productTitle ? `"${productTitle}"` : 'item'} from your favourites.`
           : `Saved ${productTitle ? `"${productTitle}"` : 'item'} to your favourites.`,
         exists ? 'info' : 'success',
+        { category: 'cart', dedupeKey: `fav-${productId}` },
       );
     },
     [favorites, showToast],
@@ -535,72 +520,6 @@ export function MarketplaceProvider({
       }}
     >
       {children}
-
-      {/* Floating Toast Notifications */}
-      {toasts.length > 0 && (
-        <div
-          aria-live="polite"
-          className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"
-        >
-          {toasts.map((t) => {
-            const toneClass =
-              t.type === 'error'
-                ? 'bg-ruby text-white border-ruby-dark'
-                : t.type === 'warning'
-                  ? 'bg-gold text-espresso border-espresso/20'
-                  : t.type === 'success'
-                    ? 'bg-espresso text-ivory border-gold/60'
-                    : 'bg-white text-espresso border-rose';
-            return (
-              <div
-                key={t.id}
-                role={t.type === 'error' ? 'alert' : 'status'}
-                aria-live={t.type === 'error' ? 'assertive' : 'polite'}
-                className={`animate-toast-in pointer-events-auto rounded-2xl px-4 py-3 shadow-lg border text-xs font-semibold flex items-center justify-between gap-3 transition-all ${toneClass}`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {t.type === 'success' && (
-                    <CheckCircle2 className="w-4 h-4 text-gold shrink-0" />
-                  )}
-                  {t.type === 'error' && (
-                    <AlertCircle className="w-4 h-4 text-white shrink-0" />
-                  )}
-                  {t.type === 'warning' && (
-                    <AlertTriangle className="w-4 h-4 text-espresso shrink-0" />
-                  )}
-                  {t.type === 'info' && (
-                    <Info className="w-4 h-4 text-ruby shrink-0" />
-                  )}
-                  <span className="leading-snug">{t.message}</span>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {t.actionLabel && t.onAction && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        t.onAction?.();
-                        setToasts((prev) => prev.filter((item) => item.id !== t.id));
-                      }}
-                      className="underline font-extrabold text-[11px] hover:opacity-80"
-                    >
-                      {t.actionLabel}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setToasts((prev) => prev.filter((item) => item.id !== t.id))}
-                    aria-label="Dismiss notification"
-                    className="p-1 rounded-lg opacity-75 hover:opacity-100 transition"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </MarketplaceContext.Provider>
   );
 }

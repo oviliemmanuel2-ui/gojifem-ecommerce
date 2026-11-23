@@ -6,10 +6,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
 import { apiFetch } from '../../../lib/api';
+import { useMarketplace } from '../../../context/MarketplaceContext';
 
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useMarketplace();
   const tokenFromUrl = searchParams.get('token') || '';
 
   const [newPassword, setNewPassword] = useState('');
@@ -48,11 +50,15 @@ function ResetPasswordForm() {
         }),
       });
       setDone(true);
+      showToast('Password updated successfully! Redirecting to sign in.', 'success', {
+        category: 'auth',
+      });
       setTimeout(() => router.push('/auth/login'), 2500);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to reset password. The link may have expired.',
-      );
+      const msg =
+        err instanceof Error ? err.message : 'Unable to reset password. The link may have expired.';
+      setError(msg);
+      showToast(msg, 'error', { category: 'auth' });
     } finally {
       setLoading(false);
     }

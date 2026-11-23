@@ -102,28 +102,46 @@ function ConfirmationContent() {
         if (!clearedCartRef.current) {
           clearedCartRef.current = true;
           clearCart();
-          showToast('Payment confirmed! Thank you for shopping with GOJIFEM.', 'success');
+          showToast('Payment confirmed! Thank you for shopping with GOJIFEM.', 'success', {
+            category: 'payment',
+            dedupeKey: `payment-confirmed-${reference}`,
+          });
         }
       } else if (data.status === 'PENDING') {
         setVerifyState('pending');
-        setErrorMessage(
+        const msg =
           data.message ||
-            'Your payment is still pending confirmation from the payment provider.',
-        );
+          'Your payment is still pending confirmation from the payment provider.';
+        setErrorMessage(msg);
+        showToast(msg, 'warning', {
+          category: 'payment',
+          persistent: true,
+          dedupeKey: `payment-pending-${reference}`,
+        });
       } else {
         setVerifyState('failed');
-        setErrorMessage(
+        const msg =
           data.message ||
-            'Payment has not been confirmed by the payment provider.',
-        );
+          'Payment has not been confirmed by the payment provider.';
+        setErrorMessage(msg);
+        showToast(msg, 'error', {
+          category: 'payment',
+          persistent: true,
+          dedupeKey: `payment-failed-${reference}`,
+        });
       }
     } catch (err: unknown) {
       setVerifyState('failed');
-      setErrorMessage(
+      const msg =
         err instanceof Error
           ? err.message
-          : 'Unable to verify your payment right now. Your cart has not been cleared.',
-      );
+          : 'Unable to verify your payment right now. Your cart has not been cleared.';
+      setErrorMessage(msg);
+      showToast(msg, 'error', {
+        category: 'payment',
+        persistent: true,
+        dedupeKey: `payment-error-${reference}`,
+      });
     } finally {
       setRetrying(false);
     }

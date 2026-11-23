@@ -46,6 +46,7 @@ export function ProductDetailClient({ product }: { product: ProductData }) {
       showToast(
         `Maximum available stock reached (${product.stockCount} in stock).`,
         'warning',
+        { category: 'cart', dedupeKey: `stock-limit-${product.id}` },
       );
       return;
     }
@@ -74,10 +75,15 @@ export function ProductDetailClient({ product }: { product: ProductData }) {
         quantity,
       );
       setAdded(true);
-      showToast(`Added ${quantity}x "${product.title}" to your shopping bag.`, 'success');
+      showToast(`Added ${quantity}x "${product.title}" to your shopping bag.`, 'success', {
+        category: 'cart',
+        dedupeKey: `cart-add-${product.id}`,
+      });
       setTimeout(() => setAdded(false), 2500);
     } catch {
-      showToast('Unable to add item to bag right now. Please try again.', 'error');
+      showToast('Unable to add item to bag right now. Please try again.', 'error', {
+        category: 'cart',
+      });
     } finally {
       addingRef.current = false;
       setAdding(false);

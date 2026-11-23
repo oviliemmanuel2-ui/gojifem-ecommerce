@@ -67,7 +67,7 @@ export function RouteProgressBar() {
   return (
     <div
       aria-hidden="true"
-      className="fixed top-0 left-0 right-0 z-[120] h-[3px] overflow-hidden bg-rose/40 pointer-events-none"
+      className="fixed top-0 left-0 right-0 z-[70] h-[3px] overflow-hidden bg-rose/40 pointer-events-none"
     >
       <div className="h-full w-2/5 bg-gradient-to-r from-ruby via-gold to-ruby animate-route-bar" />
     </div>

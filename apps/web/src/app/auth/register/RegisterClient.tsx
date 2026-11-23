@@ -53,13 +53,17 @@ export function RegisterClient({
     e.preventDefault();
     if (submittingRef.current) return;
     if (!acceptTerms) {
-      setError('Please accept the Terms of Service and Privacy Policy');
+      const msg = 'Please accept the Terms of Service and Privacy Policy';
+      setError(msg);
+      showToast(msg, 'warning', { category: 'auth', dedupeKey: 'auth-register-terms' });
       return;
     }
 
     const sanitizedPhone = phone.replace(/[\s\-()]/g, '').trim();
     if (sanitizedPhone && !/^\+?[1-9]\d{6,14}$/.test(sanitizedPhone)) {
-      setError('Please enter a valid phone number in international format (e.g. +2348012345678).');
+      const msg = 'Please enter a valid phone number in international format (e.g. +2348012345678).';
+      setError(msg);
+      showToast(msg, 'warning', { category: 'auth', dedupeKey: 'auth-register-phone' });
       return;
     }
 
@@ -90,14 +94,16 @@ export function RegisterClient({
           ? 'Account created! Continuing to checkout with your saved cart.'
           : 'Account created! Please check your email inbox for the verification link.',
         'success',
+        { category: 'auth', dedupeKey: 'auth-register-success' },
       );
       router.push(target);
     } catch (err: unknown) {
-      setError(
+      const msg =
         err instanceof Error
           ? err.message
-          : 'Registration failed. Please verify your details.',
-      );
+          : 'Registration failed. Please verify your details.';
+      setError(msg);
+      showToast(msg, 'error', { category: 'auth', dedupeKey: 'auth-register-error' });
     } finally {
       submittingRef.current = false;
       setLoading(false);

@@ -413,14 +413,17 @@ export default function VendorApplyPage() {
       if (nextStep) {
         setStep(nextStep);
       } else {
-        showToast('Merchant application draft saved to database.', 'success');
+        showToast('Merchant application draft saved to database.', 'success', {
+          category: 'merchant',
+          dedupeKey: 'merchant-draft-saved',
+        });
       }
       return true;
     } catch (err: unknown) {
       const msg =
         err instanceof ApiError ? err.message : 'Unable to save merchant draft right now.';
       setActionError(msg);
-      showToast(msg, 'error');
+      showToast(msg, 'error', { category: 'merchant' });
       return false;
     } finally {
       setSavingDraft(false);
@@ -681,11 +684,12 @@ export default function VendorApplyPage() {
       showToast(
         `Application ${res.referenceNumber} submitted for compliance review!`,
         'success',
+        { category: 'merchant', dedupeKey: 'merchant-app-submitted' },
       );
     } catch (err: unknown) {
       const msg = err instanceof ApiError ? err.message : 'Unable to submit application.';
       setActionError(msg);
-      showToast(msg, 'error');
+      showToast(msg, 'error', { category: 'merchant' });
     } finally {
       setSubmitting(false);
     }

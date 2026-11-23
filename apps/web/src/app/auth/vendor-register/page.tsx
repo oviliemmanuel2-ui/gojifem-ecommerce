@@ -63,14 +63,18 @@ export default function VendorRegisterPage() {
           vendors: response.vendor ? [response.vendor as never] : [],
         },
       });
-      showToast('Merchant account created! Complete KYC verification to go live.', 'success');
+      showToast('Merchant account created! Complete KYC verification to go live.', 'success', {
+        category: 'merchant',
+        dedupeKey: 'merchant-register-success',
+      });
       router.push('/vendor/apply');
     } catch (err: unknown) {
-      setError(
+      const msg =
         err instanceof Error
           ? err.message
-          : 'Registration failed. Please check your information.',
-      );
+          : 'Registration failed. Please check your information.';
+      setError(msg);
+      showToast(msg, 'error', { category: 'merchant', dedupeKey: 'merchant-register-error' });
     } finally {
       setLoading(false);
     }

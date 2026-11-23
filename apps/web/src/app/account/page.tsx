@@ -133,9 +133,13 @@ export default function AccountPage() {
         method: 'POST',
         body: JSON.stringify({ email }),
       });
-      showToast(res.message || 'Verification email sent!', 'success');
+      showToast(res.message || 'Verification email sent!', 'success', {
+        category: 'auth',
+      });
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Unable to send verification email.', 'error');
+      showToast(err instanceof Error ? err.message : 'Unable to send verification email.', 'error', {
+        category: 'auth',
+      });
     } finally {
       setResendingVerify(false);
     }
@@ -164,7 +168,9 @@ export default function AccountPage() {
     setNewPhone('');
     setNewCity('');
     setNewStreet('');
-    showToast('Delivery address saved to your address book.', 'success');
+    showToast('Delivery address saved to your address book.', 'success', {
+      category: 'checkout',
+    });
   };
 
   if (sessionReady && !session) {

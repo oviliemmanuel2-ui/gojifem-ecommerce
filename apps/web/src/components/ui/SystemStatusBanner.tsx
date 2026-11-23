@@ -1,94 +1,58 @@
 'use client';
 
-import React from 'react';
-import { WifiOff, ServerCrash, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useEffect } from 'react';
+import { useNotifications } from '../../context/NotificationContext';
 import { useSystemHealth } from '../../context/SystemHealthContext';
-import { Spinner } from './Spinner';
+
+const SYSTEM_STATUS_DEDUPE_KEY = 'gojifem-system-connectivity';
 
 /**
- * Operational connectivity banner displayed only when the browser is offline,
- * the backend is unreachable, or database/auth health checks report degraded status.
+ * Connects system health monitoring into the fixed global notification portal
+ * so connectivity/backend alerts remain visible regardless of scroll position.
  */
 export function SystemStatusBanner() {
-  const { status, checking, health, lastError, checkHealth } = useSystemHealth();
+  const { status, health, lastError, checkHealth } = useSystemHealth();
+  const { notify, dismissByKey } = useNotifications();
 
-  if (status === 'checking' || status === 'operational') {
-    return null;
-  }
+  useEffect(() => {
+    if (status === 'checking' || status === 'operational') {
+      dismissByKey(SYSTEM_STATUS_DEDUPE_KEY);
+      return;
+    }
 
-  const isOffline = status === 'offline';
-  const isUnreachable = status === 'unreachable';
+    const isOffline = status === 'offline';
+    const isUnreachable = status === 'unreachable';
 
-  const title = isOffline
-    ? 'You are currently offline'
-    : isUnreachable
-      ? 'Unable to reach GOJIFEM backend services'
-      : 'Limited service availability detected';
+    const title = isOffline
+      ? 'You are currently offline'
+      : isUnreachable
+        ? 'Backend services unreachable'
+        : 'Limited service availability';
 
-  const dbStatus = health?.services?.database?.status;
-  const authStatus = health?.services?.auth?.status;
+    const dbStatus = health?.services?.database?.status;
+    const authStatus = health?.services?.auth?.status;
+    const serviceDetail =
+      status === 'degraded' && (dbStatus || authStatus)
+        ? ` (DB: ${dbStatus || 'unknown'}, Auth: ${authStatus || 'unknown'})`
+        : '';
 
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={`border-b px-4 py-2.5 text-xs ${
-        isOffline || isUnreachable
-          ? 'bg-ruby text-white border-ruby-dark'
-          : 'bg-gold/25 text-espresso border-gold'
-      }`}
-    >
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-start sm:items-center gap-2.5">
-          {isOffline ? (
-            <WifiOff className="w-4 h-4 shrink-0 mt-0.5 sm:mt-0" />
-          ) : isUnreachable ? (
-            <ServerCrash className="w-4 h-4 shrink-0 mt-0.5 sm:mt-0" />
-          ) : (
-            <AlertTriangle className="w-4 h-4 text-ruby shrink-0 mt-0.5 sm:mt-0" />
-          )}
+    const message =
+      (lastError ||
+        'Your shopping cart stays safely saved on this device while connectivity recovers.') +
+      serviceDetail;
 
-          <div>
-            <strong className="font-bold">{title}:</strong>{' '}
-            <span>
-              {lastError ||
-                'Your shopping cart stays safely saved on this device while connectivity recovers.'}
-            </span>
-            {status === 'degraded' && (dbStatus || authStatus) && (
-              <span className="ml-2 inline-flex flex-wrap gap-1.5 text-[10px] font-bold uppercase tracking-wide">
-                <span className="px-1.5 py-0.5 rounded bg-white/70 border border-espresso/15">
-                  DB: {dbStatus || 'unknown'}
-                </span>
-                <span className="px-1.5 py-0.5 rounded bg-white/70 border border-espresso/15">
-                  Auth: {authStatus || 'unknown'}
-                </span>
-              </span>
-            )}
-          </div>
-        </div>
+    notify(message, isOffline || isUnreachable ? 'error' : 'warning', {
+      title,
+      category: 'system',
+      persistent: true,
+      critical: true,
+      dedupeKey: SYSTEM_STATUS_DEDUPE_KEY,
+      actionLabel: 'Check Again',
+      onAction: () => {
+        void checkHealth('manual-banner');
+      },
+    });
+  }, [status, health, lastError, checkHealth, notify, dismissByKey]);
 
-        <button
-          type="button"
-          onClick={() => checkHealth('manual-banner')}
-          disabled={checking}
-          className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold shrink-0 transition disabled:opacity-60 ${
-            isOffline || isUnreachable
-              ? 'bg-white text-ruby hover:bg-ivory'
-              : 'bg-espresso text-ivory hover:bg-espresso-muted'
-          }`}
-        >
-          {checking ? (
-            <Spinner
-              size="xs"
-              tone={isOffline || isUnreachable ? 'ruby' : 'ivory'}
-              label="Checking system health..."
-            />
-          ) : (
-            <RefreshCw className="w-3 h-3" />
-          )}
-          <span>{checking ? 'Checking...' : 'Check Again'}</span>
-        </button>
-      </div>
-    </div>
-  );
+  return null;
 }

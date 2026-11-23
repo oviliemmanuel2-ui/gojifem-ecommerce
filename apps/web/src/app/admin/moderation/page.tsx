@@ -60,7 +60,7 @@ const INITIAL_PENDING_PRODUCTS: PendingProduct[] = [
 ];
 
 export default function AdminModerationPage() {
-  const { formatPrice } = useMarketplace();
+  const { formatPrice, showToast } = useMarketplace();
   const [products, setProducts] = useState<PendingProduct[]>(INITIAL_PENDING_PRODUCTS);
   const [selectedProduct, setSelectedProduct] = useState<PendingProduct | null>(products[0]);
   const [moderationNote, setModerationNote] = useState('');
@@ -72,6 +72,13 @@ export default function AdminModerationPage() {
     if (selectedProduct?.id === id) {
       setSelectedProduct((prev) => (prev ? { ...prev, status: action } : null));
     }
+    showToast(
+      action === 'ACTIVE'
+        ? 'Product listing approved and published.'
+        : 'Product listing marked rejected.',
+      action === 'ACTIVE' ? 'success' : 'warning',
+      { category: 'merchant', dedupeKey: `mod-${id}` },
+    );
   };
 
   return (

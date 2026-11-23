@@ -77,10 +77,14 @@ export function LoginClient({
           ? 'Signed in! Returning you to checkout with your saved cart.'
           : 'Signed in successfully. Welcome back to GOJIFEM!',
         'success',
+        { category: 'auth', dedupeKey: 'auth-login-success' },
       );
       router.push(target);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Invalid email or password. Please try again.');
+      const msg =
+        err instanceof Error ? err.message : 'Invalid email or password. Please try again.';
+      setError(msg);
+      showToast(msg, 'error', { category: 'auth', dedupeKey: 'auth-login-error' });
     } finally {
       submittingRef.current = false;
       setLoading(false);

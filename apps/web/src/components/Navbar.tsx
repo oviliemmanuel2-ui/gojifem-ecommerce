@@ -84,7 +84,7 @@ export function Navbar() {
       </div>
 
       {/* Main Navbar */}
-      <header className="border-b border-rose/60 bg-ivory/95 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+      <header className="border-b border-rose/60 bg-ivory/95 backdrop-blur-md sticky top-0 z-[30] shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo with Shopping Cart next to GOJIFEM */}
           <Link href="/" className="flex items-center gap-3 group shrink-0">
@@ -191,7 +191,7 @@ export function Navbar() {
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white border border-rose rounded-2xl shadow-lg py-2 z-50 text-xs">
+                  <div className="absolute right-0 mt-2 w-48 bg-white border border-rose rounded-2xl shadow-lg py-2 z-[40] text-xs">
                     <div className="px-3.5 py-2 border-b border-rose/60 text-[11px] text-espresso/70 truncate">
                       {session.user.email}
                     </div>
@@ -288,7 +288,7 @@ export function Navbar() {
 
         {/* Mobile Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-rose/60 bg-ivory px-4 py-4 space-y-3 shadow-md">
+          <div className="md:hidden relative z-[40] border-t border-rose/60 bg-ivory px-4 py-4 space-y-3 shadow-md">
             <form onSubmit={handleSearchSubmit} className="relative">
               <input
                 type="search"

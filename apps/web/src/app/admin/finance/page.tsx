@@ -63,7 +63,7 @@ const INITIAL_PAYOUT_QUEUE: EligibleVendorPayout[] = [
 ];
 
 export default function AdminFinancePage() {
-  const { formatPrice } = useMarketplace();
+  const { formatPrice, showToast } = useMarketplace();
   const [ledgerAccounts, setLedgerAccounts] = useState<LedgerAccountItem[]>(INITIAL_LEDGER_ACCOUNTS);
   const [payoutQueue, setPayoutQueue] = useState<EligibleVendorPayout[]>(INITIAL_PAYOUT_QUEUE);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -75,6 +75,10 @@ export default function AdminFinancePage() {
         prev.map((p) => (p.vendorId === vendorId ? { ...p, status: 'SETTLED' } : p)),
       );
       setProcessingId(null);
+      showToast('Merchant settlement transfer marked settled.', 'success', {
+        category: 'payment',
+        dedupeKey: `payout-${vendorId}`,
+      });
     }, 700);
   };
 

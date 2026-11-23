@@ -80,7 +80,7 @@ export default function VendorOrdersPage() {
 
   const handleDispatch = async (orderId: string) => {
     if (!trackingCode.trim()) {
-      showToast('Enter a courier tracking number first.', 'warning');
+      showToast('Enter a courier tracking number first.', 'warning', { category: 'order' });
       return;
     }
     setSubmittingDispatch(true);
@@ -111,9 +111,13 @@ export default function VendorOrdersPage() {
       );
       setDispatchingId(null);
       setTrackingCode('');
-      showToast(`Order marked dispatched via ${res.carrier}.`, 'success');
+      showToast(`Order marked dispatched via ${res.carrier}.`, 'success', {
+        category: 'order',
+      });
     } catch (err: unknown) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to update dispatch.', 'error');
+      showToast(err instanceof ApiError ? err.message : 'Failed to update dispatch.', 'error', {
+        category: 'order',
+      });
     } finally {
       setSubmittingDispatch(false);
     }

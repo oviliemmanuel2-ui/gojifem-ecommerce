@@ -65,11 +65,14 @@ function AppleCallbackContent() {
             ? 'Signed in with Apple! Returning you to checkout.'
             : 'Signed in with Apple successfully!',
           'success',
+          { category: 'auth', dedupeKey: 'auth-oauth-apple' },
         );
         router.replace(target);
       } catch (err: unknown) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Unable to finalize Apple Sign-In session.');
+        const msg = err instanceof Error ? err.message : 'Unable to finalize Apple Sign-In session.';
+        setError(msg);
+        showToast(msg, 'error', { category: 'auth', dedupeKey: 'auth-oauth-apple-err' });
       }
     })();
 

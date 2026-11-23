@@ -82,7 +82,10 @@ export default function CheckoutPage() {
     if (!sessionReady) return;
     if (!session?.accessToken) {
       savePostAuthRedirect('/checkout');
-      showToast(CHECKOUT_AUTH_MESSAGE, 'info');
+      showToast(CHECKOUT_AUTH_MESSAGE, 'info', {
+        category: 'checkout',
+        dedupeKey: 'checkout-auth-required',
+      });
       router.replace('/auth/login?redirect=/checkout&reason=checkout');
       return;
     }
@@ -153,7 +156,10 @@ export default function CheckoutPage() {
 
     if (!session?.accessToken) {
       savePostAuthRedirect('/checkout');
-      showToast(CHECKOUT_AUTH_MESSAGE, 'info');
+      showToast(CHECKOUT_AUTH_MESSAGE, 'info', {
+        category: 'checkout',
+        dedupeKey: 'checkout-auth-required',
+      });
       router.replace('/auth/login?redirect=/checkout&reason=checkout');
       return;
     }
@@ -225,12 +231,19 @@ export default function CheckoutPage() {
       if (message.toLowerCase().includes('sign in') || message.toLowerCase().includes('unauthorized')) {
         setSession(null);
         savePostAuthRedirect('/checkout');
-        showToast(CHECKOUT_AUTH_MESSAGE, 'info');
+        showToast(CHECKOUT_AUTH_MESSAGE, 'info', {
+          category: 'checkout',
+          dedupeKey: 'checkout-auth-required',
+        });
         router.replace('/auth/login?redirect=/checkout&reason=checkout');
         return;
       }
       setCheckoutError(message);
-      showToast(message, 'error');
+      showToast(message, 'error', {
+        category: 'payment',
+        persistent: true,
+        dedupeKey: 'checkout-payment-error',
+      });
       submittingRef.current = false;
       setProcessing(false);
     }

@@ -78,9 +78,14 @@ export default function VendorProductsPage() {
       setProducts((prev) =>
         prev.map((p) => (p.id === productId ? { ...p, stockCount: res.stockCount } : p)),
       );
-      showToast('Inventory updated.', 'success');
+      showToast('Inventory updated.', 'success', {
+        category: 'merchant',
+        dedupeKey: `stock-update-${productId}`,
+      });
     } catch (err: unknown) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to update stock.', 'error');
+      showToast(err instanceof ApiError ? err.message : 'Failed to update stock.', 'error', {
+        category: 'merchant',
+      });
     } finally {
       setUpdatingId(null);
     }

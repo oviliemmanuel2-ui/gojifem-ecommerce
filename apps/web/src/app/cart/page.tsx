@@ -45,7 +45,7 @@ export default function CartPage() {
     try {
       await updateQuantity(variantId, nextQty);
       if (nextQty <= 0) {
-        showToast(`Removed "${title}" from your shopping bag.`, 'info');
+        showToast(`Removed "${title}" from your shopping bag.`, 'info', { category: 'cart' });
       }
     } finally {
       setUpdatingItemId((curr) => (curr === variantId ? null : curr));
@@ -56,7 +56,7 @@ export default function CartPage() {
     setUpdatingItemId(variantId);
     try {
       await removeFromCart(variantId);
-      showToast(`Removed "${title}" from your shopping bag.`, 'info');
+      showToast(`Removed "${title}" from your shopping bag.`, 'info', { category: 'cart' });
     } finally {
       setUpdatingItemId((curr) => (curr === variantId ? null : curr));
     }
@@ -64,7 +64,7 @@ export default function CartPage() {
 
   const handleEmptyCart = () => {
     clearCart();
-    showToast('Shopping cart cleared.', 'info');
+    showToast('Shopping cart cleared.', 'info', { category: 'cart' });
   };
 
   const handleProceedToCheckout = () => {
@@ -77,7 +77,10 @@ export default function CartPage() {
       return;
     }
     savePostAuthRedirect('/checkout');
-    showToast(CHECKOUT_AUTH_MESSAGE, 'info');
+    showToast(CHECKOUT_AUTH_MESSAGE, 'info', {
+      category: 'checkout',
+      dedupeKey: 'checkout-auth-required',
+    });
     router.push('/auth/login?redirect=/checkout&reason=checkout');
   };
 

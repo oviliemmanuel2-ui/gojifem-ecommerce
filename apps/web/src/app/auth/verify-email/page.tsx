@@ -6,9 +6,11 @@ import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
 import { apiFetch } from '../../../lib/api';
+import { useMarketplace } from '../../../context/MarketplaceContext';
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
+  const { showToast } = useMarketplace();
   const token = searchParams.get('token');
 
   const [status, setStatus] = useState<'idle' | 'verifying' | 'verified' | 'error'>(
@@ -31,13 +33,16 @@ function VerifyEmailContent() {
         });
         if (cancelled) return;
         setStatus('verified');
-        setMessage(res.message || 'Your email address has been verified.');
+        const msg = res.message || 'Your email address has been verified.';
+        setMessage(msg);
+        showToast(msg, 'success', { category: 'auth', dedupeKey: 'auth-email-verified' });
       } catch (err: unknown) {
         if (cancelled) return;
         setStatus('error');
-        setMessage(
-          err instanceof Error ? err.message : 'Verification link is invalid or has expired.',
-        );
+        const msg =
+          err instanceof Error ? err.message : 'Verification link is invalid or has expired.';
+        setMessage(msg);
+        showToast(msg, 'error', { category: 'auth', dedupeKey: 'auth-email-verify-err' });
       }
     })();
 

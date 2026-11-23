@@ -209,7 +209,9 @@ export default function AdminVendorsPage() {
       (action === 'REQUEST_MORE_INFO' || action === 'REJECT' || action === 'SUSPEND') &&
       !decisionNote.trim()
     ) {
-      showToast('Please enter a clear compliance reason or instruction note first.', 'warning');
+      showToast('Please enter a clear compliance reason or instruction note first.', 'warning', {
+        category: 'merchant',
+      });
       return;
     }
 
@@ -227,13 +229,15 @@ export default function AdminVendorsPage() {
           timeoutMs: 15000,
         },
       );
-      showToast(`Application updated to ${humanizeStatus(res.status)}.`, 'success');
+      showToast(`Application updated to ${humanizeStatus(res.status)}.`, 'success', {
+        category: 'merchant',
+      });
       setDecisionNote('');
       await fetchApplications();
     } catch (err: unknown) {
       const msg =
         err instanceof ApiError ? err.message : 'Unable to apply merchant verification decision.';
-      showToast(msg, 'error');
+      showToast(msg, 'error', { category: 'merchant' });
     } finally {
       setDecisionSubmitting(false);
     }

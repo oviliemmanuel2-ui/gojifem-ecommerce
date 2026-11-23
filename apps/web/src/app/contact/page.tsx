@@ -51,11 +51,13 @@ export default function ContactPage() {
       });
       setSubmittedId(res.id || 'RECEIVED');
       setMessage('');
-      showToast('Your message has been delivered to GOJIFEM Support.', 'success');
+      showToast('Your message has been delivered to GOJIFEM Support.', 'success', {
+        category: 'general',
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unable to send your message right now.';
       setError(msg);
-      showToast(msg, 'error');
+      showToast(msg, 'error', { category: 'general' });
     } finally {
       submittingRef.current = false;
       setSubmitting(false);

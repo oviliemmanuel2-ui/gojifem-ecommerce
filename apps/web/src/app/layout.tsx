@@ -1,11 +1,18 @@
 import React, { Suspense } from 'react';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { NotificationProvider } from '../context/NotificationContext';
 import { SystemHealthProvider } from '../context/SystemHealthContext';
 import { MarketplaceProvider } from '../context/MarketplaceContext';
 import { RouteProgressBar } from '../components/ui/RouteProgressBar';
 import { SystemStatusBanner } from '../components/ui/SystemStatusBanner';
 import { getSiteSettings } from '../sanity/lib/fetch';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: 'GOJIFEM | Global Multi-Vendor Marketplace (Shop All Items Locally & Worldwide)',
@@ -23,15 +30,17 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen flex flex-col font-sans antialiased text-espresso bg-ivory selection:bg-rose selection:text-ruby">
-        <SystemHealthProvider>
-          <MarketplaceProvider initialSiteSettings={siteSettings}>
-            <Suspense fallback={null}>
-              <RouteProgressBar />
-            </Suspense>
-            <SystemStatusBanner />
-            {children}
-          </MarketplaceProvider>
-        </SystemHealthProvider>
+        <NotificationProvider>
+          <SystemHealthProvider>
+            <MarketplaceProvider initialSiteSettings={siteSettings}>
+              <Suspense fallback={null}>
+                <RouteProgressBar />
+              </Suspense>
+              <SystemStatusBanner />
+              {children}
+            </MarketplaceProvider>
+          </SystemHealthProvider>
+        </NotificationProvider>
       </body>
     </html>
   );

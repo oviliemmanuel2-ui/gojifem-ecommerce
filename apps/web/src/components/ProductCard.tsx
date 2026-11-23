@@ -38,10 +38,15 @@ export function ProductCard({ product }: { product: ProductData }) {
         vendorSlug: product.vendorSlug,
       });
       setJustAdded(true);
-      showToast(`Added "${product.title}" to your shopping bag.`, 'success');
+      showToast(`Added "${product.title}" to your shopping bag.`, 'success', {
+        category: 'cart',
+        dedupeKey: `cart-add-${product.id}`,
+      });
       setTimeout(() => setJustAdded(false), 1800);
     } catch {
-      showToast(`Unable to add "${product.title}" right now. Please try again.`, 'error');
+      showToast(`Unable to add "${product.title}" right now. Please try again.`, 'error', {
+        category: 'cart',
+      });
     } finally {
       addingRef.current = false;
       setAdding(false);
