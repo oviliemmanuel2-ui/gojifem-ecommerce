@@ -102,6 +102,10 @@ export function verifyRefreshJwt(token: string): AuthJwtPayload {
   return verifyJwt<AuthJwtPayload>(token, getRefreshSecret());
 }
 
+export function verifyAccessJwt(token: string): AuthJwtPayload {
+  return verifyJwt<AuthJwtPayload>(token, getAccessSecret());
+}
+
 export function authenticateRequest(req: NextRequest): AuthJwtPayload | null {
   const auth = req.headers.get('authorization');
   if (!auth || !auth.toLowerCase().startsWith('bearer ')) {

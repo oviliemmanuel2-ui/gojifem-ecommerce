@@ -5,7 +5,7 @@ import {
   isLocalhostDatabaseUrl,
   resolveDatabaseEnv,
 } from '../../../../lib/server/prisma';
-import { issueTokenPair, verifyJwt } from '../../../../lib/server/jwt';
+import { issueTokenPair, verifyAccessJwt } from '../../../../lib/server/jwt';
 import { logServerEvent } from '../../../../lib/server/logger';
 import { isSanityConfigured } from '../../../../sanity/env';
 
@@ -91,11 +91,7 @@ export async function GET() {
   let jwtError: string | undefined;
   try {
     const pair = issueTokenPair('healthcheck', 'healthcheck@gojifem.local', [], []);
-    const secret =
-      process.env.JWT_SECRET ||
-      process.env.JWT_ACCESS_SECRET ||
-      'super_secret_jwt_key_at_least_32_chars_long';
-    const decoded = verifyJwt<{ sub: string }>(pair.accessToken, secret);
+    const decoded = verifyAccessJwt(pair.accessToken);
     jwtOperational = decoded?.sub === 'healthcheck';
   } catch (err: unknown) {
     jwtOperational = false;
