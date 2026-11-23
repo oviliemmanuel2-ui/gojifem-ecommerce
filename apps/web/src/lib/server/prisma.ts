@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
+import { logServerEvent } from './logger';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -38,6 +39,8 @@ export function handleServerError(err: unknown): NextResponse {
   const code = errorObj?.code;
   const name = errorObj?.name;
   const message = errorObj?.message || 'Unexpected server error';
+
+  logServerEvent('error', 'prisma', message, { code, name, error: errorObj });
 
   if (code === 'P2002') {
     return NextResponse.json(

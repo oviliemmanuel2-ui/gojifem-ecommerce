@@ -51,6 +51,7 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'addresses' | 'orders'>('profile');
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [retryNotice, setRetryNotice] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [resendingVerify, setResendingVerify] = useState(false);
 
@@ -74,9 +75,16 @@ export default function AccountPage() {
     }
 
     setLoadingProfile(true);
+    setRetryNotice(null);
     setProfileError(null);
     try {
-      const res = await apiFetch<ProfileResponse>('/auth/me');
+      const res = await apiFetch<ProfileResponse>('/auth/me', {
+        cancelPreviousKey: 'account-profile',
+        onRetryAttempt: ({ attempt, maxRetries }) => {
+          setRetryNotice(`Reconnecting to profile service (attempt ${attempt} of ${maxRetries})...`);
+        },
+      });
+      setRetryNotice(null);
       setProfile(res);
       setAddresses(res.addresses || []);
       setSession({
@@ -93,6 +101,10 @@ export default function AccountPage() {
         },
       });
     } catch (err: unknown) {
+      setRetryNotice(null);
+      if (err instanceof Error && err.name === 'ApiError' && (err as { category?: string }).category === 'ABORTED') {
+        return;
+      }
       setProfileError(
         err instanceof Error ? err.message : 'Could not refresh profile from server.',
       );
@@ -278,8 +290,8 @@ export default function AccountPage() {
                   <h2 className="text-lg font-serif font-bold text-espresso">Personal Profile</h2>
                   {loadingProfile && (
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-espresso/70">
-                      <Spinner size="xs" tone="ruby" label="Refreshing from server..." />
-                      <span>Refreshing from server...</span>
+                      <Spinner size="xs" tone="ruby" label={retryNotice || 'Refreshing from server...'} />
+                      <span>{retryNotice || 'Refreshing from server...'}</span>
                     </span>
                   )}
                 </div>

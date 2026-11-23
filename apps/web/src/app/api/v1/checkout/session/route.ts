@@ -3,9 +3,19 @@ import { CHECKOUT_AUTH_MESSAGE } from '../../../../../lib/authRedirect';
 import { authenticateRequest } from '../../../../../lib/server/jwt';
 import { resolveRequestOrigin } from '../../../../../lib/server/oauth';
 import { getPrisma, handleServerError, requireDatabase } from '../../../../../lib/server/prisma';
+import { createRequestId, logServerEvent } from '../../../../../lib/server/logger';
+import {
+  beginIdempotentOperation,
+  buildIdempotencyScopeKey,
+  completeIdempotentOperation,
+  extractIdempotencyKey,
+  releaseIdempotentOperation,
+} from '../../../../../lib/server/idempotency';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const PROVIDER_TIMEOUT_MS = 15000;
 
 interface CheckoutSessionItemInput {
   productId?: string;
@@ -16,7 +26,22 @@ interface CheckoutSessionItemInput {
   vendorId?: string;
 }
 
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = PROVIDER_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function POST(req: NextRequest) {
+  const requestId = createRequestId();
   const authUser = authenticateRequest(req);
   if (!authUser) {
     return NextResponse.json(
@@ -28,21 +53,11 @@ export async function POST(req: NextRequest) {
   const dbMissing = requireDatabase();
   if (dbMissing) return dbMissing;
 
+  let idemCompositeKey: string | null = null;
+
   try {
-    const prisma = getPrisma();
-    const user = await prisma.user.findUnique({
-      where: { id: authUser.sub },
-      select: { id: true, email: true, accountStatus: true },
-    });
-
-    if (!user || user.accountStatus !== 'ACTIVE') {
-      return NextResponse.json(
-        { message: 'Active customer account required to checkout.', code: 'AUTH_REQUIRED' },
-        { status: 401 },
-      );
-    }
-
     const body = (await req.json()) as {
+      idempotencyKey?: string;
       items?: CheckoutSessionItemInput[];
       shippingAddress?: {
         firstName?: string;
@@ -59,8 +74,52 @@ export async function POST(req: NextRequest) {
       provider?: 'PAYSTACK' | 'FLUTTERWAVE';
     };
 
+    const idempotencyKey = extractIdempotencyKey(req, body.idempotencyKey);
+    if (idempotencyKey) {
+      idemCompositeKey = buildIdempotencyScopeKey('checkout_session', authUser.sub, idempotencyKey);
+      const decision = beginIdempotentOperation(idemCompositeKey);
+      if (decision.state === 'IN_PROGRESS') {
+        logServerEvent('warn', 'checkout/session', 'Duplicate concurrent checkout request blocked', {
+          requestId,
+          userId: authUser.sub,
+        });
+        return NextResponse.json(
+          {
+            code: 'IDEMPOTENCY_IN_PROGRESS',
+            message: 'This payment request is already processing. Please wait a moment.',
+          },
+          { status: 409 },
+        );
+      }
+      if (decision.state === 'REPLAY') {
+        logServerEvent('info', 'checkout/session', 'Replaying completed idempotent checkout session', {
+          requestId,
+          userId: authUser.sub,
+        });
+        return NextResponse.json(
+          { ...decision.body, idempotentReplay: true },
+          { status: decision.status },
+        );
+      }
+    }
+
+    const prisma = getPrisma();
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.sub },
+      select: { id: true, email: true, accountStatus: true },
+    });
+
+    if (!user || user.accountStatus !== 'ACTIVE') {
+      if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
+      return NextResponse.json(
+        { message: 'Active customer account required to checkout.', code: 'AUTH_REQUIRED' },
+        { status: 401 },
+      );
+    }
+
     const items = Array.isArray(body.items) ? body.items : [];
     if (items.length === 0) {
+      if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
       return NextResponse.json({ message: 'Your shopping cart is empty.' }, { status: 400 });
     }
 
@@ -73,6 +132,7 @@ export async function POST(req: NextRequest) {
       !addr?.city?.trim() ||
       !addr?.streetAddress?.trim()
     ) {
+      if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
       return NextResponse.json(
         { message: 'Complete recipient shipping address and phone number are required.' },
         { status: 400 },
@@ -85,6 +145,7 @@ export async function POST(req: NextRequest) {
       const qty = Math.floor(Number(item.quantity || 0));
       const unitMinor = Math.round(Number(item.priceMinorNGN || 0));
       if (!item.variantId || qty < 1 || unitMinor <= 0) {
+        if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
         return NextResponse.json(
           { message: 'Invalid product variant, price, or quantity in cart.' },
           { status: 400 },
@@ -112,6 +173,7 @@ export async function POST(req: NextRequest) {
     if (provider === 'FLUTTERWAVE') {
       const flwKey = process.env.FLUTTERWAVE_SECRET_KEY;
       if (!flwKey || flwKey.includes('xxxx')) {
+        if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
         return NextResponse.json(
           {
             message:
@@ -121,7 +183,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const res = await fetch('https://api.flutterwave.com/v3/payments', {
+      const res = await fetchWithTimeout('https://api.flutterwave.com/v3/payments', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${flwKey}`,
@@ -147,22 +209,31 @@ export async function POST(req: NextRequest) {
         data?: { link?: string };
       };
       if (!res.ok || data.status !== 'success' || !data.data?.link) {
+        if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
+        logServerEvent('error', 'checkout/session', 'Flutterwave initialization rejected', {
+          requestId,
+          status: res.status,
+          providerMessage: data.message,
+        });
         return NextResponse.json(
           { message: data.message || 'Flutterwave payment initialization failed.' },
           { status: 502 },
         );
       }
 
-      return NextResponse.json({
+      const payload = {
         orderNumber,
         provider: 'FLUTTERWAVE',
         reference,
         authorizationUrl: data.data.link,
-      });
+      };
+      if (idemCompositeKey) completeIdempotentOperation(idemCompositeKey, 200, payload);
+      return NextResponse.json(payload);
     }
 
     const paystackKey = process.env.PAYSTACK_SECRET_KEY;
     if (!paystackKey || paystackKey.includes('xxxx')) {
+      if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
       return NextResponse.json(
         {
           message:
@@ -172,7 +243,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const res = await fetch('https://api.paystack.co/transaction/initialize', {
+    const res = await fetchWithTimeout('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${paystackKey}`,
@@ -199,20 +270,47 @@ export async function POST(req: NextRequest) {
       data?: { authorization_url?: string; access_code?: string; reference?: string };
     };
     if (!res.ok || !data.status || !data.data?.authorization_url) {
+      if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
+      logServerEvent('error', 'checkout/session', 'Paystack initialization rejected', {
+        requestId,
+        status: res.status,
+        providerMessage: data.message,
+      });
       return NextResponse.json(
         { message: data.message || 'Paystack payment initialization failed.' },
         { status: 502 },
       );
     }
 
-    return NextResponse.json({
+    const payload = {
       orderNumber,
       provider: 'PAYSTACK',
       reference: data.data.reference || reference,
       authorizationUrl: data.data.authorization_url,
       accessCode: data.data.access_code,
-    });
+    };
+    if (idemCompositeKey) completeIdempotentOperation(idemCompositeKey, 200, payload);
+    return NextResponse.json(payload);
   } catch (err) {
+    if (idemCompositeKey) releaseIdempotentOperation(idemCompositeKey);
+    if (err instanceof Error && err.name === 'AbortError') {
+      logServerEvent('error', 'checkout/session', 'Payment provider request timed out', {
+        requestId,
+        timeoutMs: PROVIDER_TIMEOUT_MS,
+      });
+      return NextResponse.json(
+        {
+          message:
+            'The payment provider took too long to respond. Your card was not charged. Please try again.',
+          code: 'GATEWAY_TIMEOUT',
+        },
+        { status: 504 },
+      );
+    }
+    logServerEvent('error', 'checkout/session', 'Checkout session failed', {
+      requestId,
+      error: err as Record<string, unknown>,
+    });
     return handleServerError(err);
   }
 }

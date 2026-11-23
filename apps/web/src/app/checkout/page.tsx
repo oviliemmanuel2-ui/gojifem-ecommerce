@@ -18,7 +18,8 @@ import { CheckoutSkeleton } from '../../components/ui/Skeleton';
 import { Spinner } from '../../components/ui/Spinner';
 import { ErrorRetryBanner } from '../../components/ui/ErrorRetryBanner';
 import { useMarketplace } from '../../context/MarketplaceContext';
-import { apiFetch } from '../../lib/api';
+import { useSystemHealth } from '../../context/SystemHealthContext';
+import { apiFetch, generateIdempotencyKey } from '../../lib/api';
 import { CHECKOUT_AUTH_MESSAGE, savePostAuthRedirect } from '../../lib/authRedirect';
 
 export default function CheckoutPage() {
@@ -55,6 +56,27 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const submittingRef = useRef(false);
+  const { status: healthStatus, health, checkHealth } = useSystemHealth();
+
+  // Stable idempotency key per checkout payload prevents duplicate payment initialization
+  const checkoutPayloadSignature = JSON.stringify({
+    items: cart.map((i) => [i.variantId, i.quantity, i.priceMinorNGN]),
+    shippingCountry,
+    stateRegion,
+    city: city.trim(),
+    streetAddress: streetAddress.trim(),
+    billingCountry,
+    paymentMethod,
+    currency,
+    provider,
+  });
+  const idempotencyRef = useRef<{ sig: string; key: string } | null>(null);
+  if (!idempotencyRef.current || idempotencyRef.current.sig !== checkoutPayloadSignature) {
+    idempotencyRef.current = {
+      sig: checkoutPayloadSignature,
+      key: generateIdempotencyKey('chk'),
+    };
+  }
 
   useEffect(() => {
     if (!sessionReady) return;
@@ -141,6 +163,7 @@ export default function CheckoutPage() {
     setCheckoutError(null);
 
     try {
+      const idempotencyKey = idempotencyRef.current?.key || generateIdempotencyKey('chk');
       const paymentInit = await apiFetch<{
         orderNumber: string;
         authorizationUrl?: string;
@@ -148,7 +171,10 @@ export default function CheckoutPage() {
       }>('/checkout/session', {
         method: 'POST',
         timeoutMs: 20000,
+        maxRetries: 0,
+        idempotencyKey,
         body: JSON.stringify({
+          idempotencyKey,
           items: cart.map((item) => ({
             productId: item.productId,
             variantId: item.variantId,
@@ -224,6 +250,26 @@ export default function CheckoutPage() {
             Split multi-vendor fulfillment with guaranteed buyer escrow protection
           </p>
         </div>
+
+        {(healthStatus === 'offline' ||
+          healthStatus === 'unreachable' ||
+          healthStatus === 'degraded') && (
+          <ErrorRetryBanner
+            tone="warning"
+            title={
+              healthStatus === 'offline'
+                ? 'You are currently offline'
+                : 'Backend connectivity issue detected'
+            }
+            message={
+              health?.services?.database?.error ||
+              'Checkout payment initialization requires an active server and database connection. Your cart items remain safely saved on this device.'
+            }
+            onRetry={() => checkHealth('checkout-banner')}
+            retryLabel="Verify Connection"
+            className="mb-6"
+          />
+        )}
 
         <form onSubmit={handlePay} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Contact, Shipping & Payment Information */}

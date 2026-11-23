@@ -9,7 +9,11 @@ import {
   StoredSession,
 } from '../lib/api';
 import { mergeCartItems } from '../lib/cartMerge';
+import { logOperationalEvent } from '../lib/logger';
+import { useSystemHealth } from './SystemHealthContext';
 import type { SanitySiteSettings } from '../sanity/lib/fetch';
+
+export type CartSyncStatus = 'idle' | 'syncing' | 'synced' | 'pending_sync';
 
 export type SupportedCurrency = 'NGN' | 'USD' | 'GBP' | 'EUR';
 
@@ -53,6 +57,7 @@ interface MarketplaceContextType {
   clearCart: () => void;
   cartPulseKey: number;
   syncingVariantId: string | null;
+  cartSyncStatus: CartSyncStatus;
   favorites: string[];
   isFavorite: (productId: string) => boolean;
   toggleFavorite: (productId: string, productTitle?: string) => void;
@@ -75,7 +80,30 @@ interface MarketplaceContextType {
 
 const GUEST_CART_KEY = 'gojifem_cart';
 const USER_CART_PREFIX = 'gojifem_cart_user_';
+const PENDING_CART_SYNC_KEY = 'gojifem_cart_pending_sync';
 const FAVORITES_KEY = 'gojifem_favorites';
+
+function readPendingSyncFlag(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(PENDING_CART_SYNC_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writePendingSyncFlag(pending: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (pending) {
+      localStorage.setItem(PENDING_CART_SYNC_KEY, 'true');
+    } else {
+      localStorage.removeItem(PENDING_CART_SYNC_KEY);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 function readFavoritesFromStorage(): string[] {
   if (typeof window === 'undefined') return [];
@@ -138,6 +166,7 @@ export function MarketplaceProvider({
   children: React.ReactNode;
   initialSiteSettings?: SanitySiteSettings | null;
 }) {
+  const { isOnline, status: healthStatus } = useSystemHealth();
   const [currency, setCurrency] = useState<SupportedCurrency>('NGN');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,10 +176,12 @@ export function MarketplaceProvider({
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [cartPulseKey, setCartPulseKey] = useState(0);
   const [syncingVariantId, setSyncingVariantId] = useState<string | null>(null);
+  const [cartSyncStatus, setCartSyncStatus] = useState<CartSyncStatus>('idle');
   const [favorites, setFavorites] = useState<string[]>([]);
 
   const cartRef = useRef<CartItem[]>([]);
   const sessionRef = useRef<StoredSession | null>(null);
+  const pendingResyncLockRef = useRef(false);
 
   useEffect(() => {
     cartRef.current = cart;
@@ -205,6 +236,9 @@ export function MarketplaceProvider({
         cartRef.current = merged;
         setSessionState(savedSession);
         sessionRef.current = savedSession;
+        if (readPendingSyncFlag() && merged.length > 0) {
+          setCartSyncStatus('pending_sync');
+        }
       } else {
         setCart(guestItems);
         cartRef.current = guestItems;
@@ -285,28 +319,76 @@ export function MarketplaceProvider({
   }, [showToast]);
 
   const syncCartWithServer = useCallback(
-    async (nextItems: CartItem[], variantId: string) => {
+    async (nextItems: CartItem[], variantId: string, showRecoveryToast = false) => {
       const activeToken = sessionRef.current?.accessToken;
-      if (!activeToken || nextItems.length === 0) return;
+      if (!activeToken || nextItems.length === 0) {
+        writePendingSyncFlag(false);
+        setCartSyncStatus('idle');
+        return;
+      }
+
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        writePendingSyncFlag(true);
+        setCartSyncStatus('pending_sync');
+        return;
+      }
 
       setSyncingVariantId(variantId);
+      setCartSyncStatus('syncing');
       try {
         await apiFetch('/cart/merge', {
           method: 'POST',
           headers: { Authorization: `Bearer ${activeToken}` },
           skipAuth: true,
+          cancelPreviousKey: 'cart-merge',
           body: JSON.stringify({
             items: nextItems.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
           }),
         });
-      } catch {
-        // Local cart remains preserved even if background DB sync fails
+        writePendingSyncFlag(false);
+        setCartSyncStatus('synced');
+        if (showRecoveryToast) {
+          showToast('Connection restored — your saved shopping cart is synced.', 'success');
+        }
+      } catch (err: unknown) {
+        writePendingSyncFlag(true);
+        setCartSyncStatus('pending_sync');
+        logOperationalEvent({
+          level: 'warn',
+          category: 'CART',
+          endpoint: '/cart/merge',
+          method: 'POST',
+          message:
+            err instanceof Error
+              ? err.message
+              : 'Cart preserved locally; awaiting server reconnection to sync.',
+        });
       } finally {
         setSyncingVariantId((curr) => (curr === variantId ? null : curr));
       }
     },
-    [],
+    [showToast],
   );
+
+  // Automatically re-sync locally preserved cart items when connectivity recovers
+  useEffect(() => {
+    if (!sessionReady || !session?.accessToken) return;
+    if (!isOnline || healthStatus === 'offline' || healthStatus === 'unreachable') return;
+    if (cartSyncStatus !== 'pending_sync' || cartRef.current.length === 0) return;
+    if (pendingResyncLockRef.current) return;
+
+    pendingResyncLockRef.current = true;
+    syncCartWithServer(cartRef.current, 'resync', true).finally(() => {
+      pendingResyncLockRef.current = false;
+    });
+  }, [cartSyncStatus, healthStatus, isOnline, session?.accessToken, sessionReady, syncCartWithServer]);
+
+  const persistCartImmediately = (items: CartItem[]) => {
+    const key = sessionRef.current?.user?.id
+      ? `${USER_CART_PREFIX}${sessionRef.current.user.id}`
+      : GUEST_CART_KEY;
+    writeCartToStorage(key, items);
+  };
 
   const addToCart = async (item: Omit<CartItem, 'quantity'>, qty: number = 1) => {
     const safeQty = Math.max(1, Math.floor(qty));
@@ -319,6 +401,7 @@ export function MarketplaceProvider({
       : [...current, { ...item, quantity: safeQty }];
 
     cartRef.current = nextCart;
+    persistCartImmediately(nextCart);
     setCart(nextCart);
     setCartPulseKey((k) => k + 1);
     await syncCartWithServer(nextCart, item.variantId);
@@ -327,6 +410,7 @@ export function MarketplaceProvider({
   const removeFromCart = async (variantId: string) => {
     const nextCart = cartRef.current.filter((i) => i.variantId !== variantId);
     cartRef.current = nextCart;
+    persistCartImmediately(nextCart);
     setCart(nextCart);
     setCartPulseKey((k) => k + 1);
     await syncCartWithServer(nextCart, variantId);
@@ -341,6 +425,7 @@ export function MarketplaceProvider({
       i.variantId === variantId ? { ...i, quantity: qty } : i,
     );
     cartRef.current = nextCart;
+    persistCartImmediately(nextCart);
     setCart(nextCart);
     setCartPulseKey((k) => k + 1);
     await syncCartWithServer(nextCart, variantId);
@@ -348,6 +433,9 @@ export function MarketplaceProvider({
 
   const clearCart = () => {
     cartRef.current = [];
+    persistCartImmediately([]);
+    writePendingSyncFlag(false);
+    setCartSyncStatus('idle');
     setCart([]);
   };
 
@@ -425,6 +513,7 @@ export function MarketplaceProvider({
         clearCart,
         cartPulseKey,
         syncingVariantId,
+        cartSyncStatus,
         favorites,
         isFavorite,
         toggleFavorite,

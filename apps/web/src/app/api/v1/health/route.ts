@@ -1,43 +1,144 @@
 import { NextResponse } from 'next/server';
 import { getPrisma, isDatabaseConfigured } from '../../../../lib/server/prisma';
+import { issueTokenPair, verifyJwt } from '../../../../lib/server/jwt';
+import { logServerEvent } from '../../../../lib/server/logger';
 import { isSanityConfigured } from '../../../../sanity/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const DB_HEALTH_TIMEOUT_MS = 4000;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} exceeded ${ms}ms timeout`));
+    }, ms);
+    promise.then(
+      (val) => {
+        clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 export async function GET() {
+  const startedAt = Date.now();
   const dbConfigured = isDatabaseConfigured();
-  let dbStatus: 'connected' | 'not_configured' | 'unreachable' = 'not_configured';
+
+  let dbStatus: 'operational' | 'not_configured' | 'outage' = 'not_configured';
+  let legacyDbState: 'connected' | 'not_configured' | 'unreachable' = 'not_configured';
+  let dbLatencyMs: number | null = null;
   let dbError: string | undefined;
 
+  let authTableReady = false;
+  let authTableError: string | undefined;
+
   if (dbConfigured) {
+    const dbStart = Date.now();
     try {
-      await getPrisma().$queryRaw`SELECT 1`;
-      dbStatus = 'connected';
+      const prisma = getPrisma();
+      await withTimeout(prisma.$queryRaw`SELECT 1`, DB_HEALTH_TIMEOUT_MS, 'Database SELECT 1');
+      dbStatus = 'operational';
+      legacyDbState = 'connected';
+      dbLatencyMs = Date.now() - dbStart;
+
+      try {
+        await withTimeout(
+          prisma.user.findFirst({ select: { id: true } }),
+          DB_HEALTH_TIMEOUT_MS,
+          'Auth users table probe',
+        );
+        authTableReady = true;
+      } catch (err: unknown) {
+        authTableReady = false;
+        authTableError =
+          err instanceof Error ? err.message : 'Users table unavailable (migrations required)';
+      }
     } catch (err: unknown) {
-      dbStatus = 'unreachable';
+      dbStatus = 'outage';
+      legacyDbState = 'unreachable';
+      dbLatencyMs = Date.now() - dbStart;
       dbError = err instanceof Error ? err.message : 'Database connection failed';
+      logServerEvent('error', 'health', 'Database health check failed', {
+        latencyMs: dbLatencyMs,
+        errorMessage: dbError,
+      });
     }
   }
 
-  const healthy = dbStatus === 'connected';
-  return NextResponse.json(
-    {
-      status: healthy ? 'ok' : 'degraded',
-      service: 'GOJIFEM Marketplace Serverless API',
-      timestamp: new Date().toISOString(),
-      database: dbStatus,
-      ...(dbError ? { databaseError: dbError } : {}),
-      integrations: {
-        googleOAuthConfigured: Boolean(
-          process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
-        ),
-        appleSignInConfigured: Boolean(process.env.APPLE_CLIENT_ID),
-        paystackConfigured: Boolean(process.env.PAYSTACK_SECRET_KEY),
-        flutterwaveConfigured: Boolean(process.env.FLUTTERWAVE_SECRET_KEY),
-        sanityCmsConfigured: isSanityConfigured,
+  // Real JWT signing/verification self-test
+  let jwtOperational = false;
+  let jwtError: string | undefined;
+  try {
+    const pair = issueTokenPair('healthcheck', 'healthcheck@gojifem.local', [], []);
+    const secret =
+      process.env.JWT_SECRET ||
+      process.env.JWT_ACCESS_SECRET ||
+      'super_secret_jwt_key_at_least_32_chars_long';
+    const decoded = verifyJwt<{ sub: string }>(pair.accessToken, secret);
+    jwtOperational = decoded?.sub === 'healthcheck';
+  } catch (err: unknown) {
+    jwtOperational = false;
+    jwtError = err instanceof Error ? err.message : 'JWT token service self-check failed';
+    logServerEvent('error', 'health', 'Authentication token service check failed', {
+      errorMessage: jwtError,
+    });
+  }
+
+  const authStatus: 'operational' | 'degraded' | 'outage' = !jwtOperational
+    ? 'outage'
+    : dbStatus === 'operational' && authTableReady
+      ? 'operational'
+      : 'degraded';
+
+  const overallOperational = dbStatus === 'operational' && authStatus === 'operational';
+
+  const payload = {
+    status: overallOperational ? 'ok' : 'degraded',
+    overallStatus: overallOperational ? 'operational' : 'degraded',
+    service: 'GOJIFEM Marketplace Serverless API',
+    timestamp: new Date().toISOString(),
+    latencyMs: Date.now() - startedAt,
+    database: legacyDbState,
+    ...(dbError ? { databaseError: dbError } : {}),
+    services: {
+      api: {
+        status: 'operational' as const,
+      },
+      database: {
+        status: dbStatus,
+        configured: dbConfigured,
+        latencyMs: dbLatencyMs,
+        ...(dbError ? { error: dbError } : {}),
+      },
+      auth: {
+        status: authStatus,
+        jwtOperational,
+        databaseBacked: dbStatus === 'operational' && authTableReady,
+        ...(jwtError || authTableError ? { error: jwtError || authTableError } : {}),
       },
     },
-    { status: healthy ? 200 : 503 },
-  );
+    integrations: {
+      googleOAuthConfigured: Boolean(
+        process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+      ),
+      appleSignInConfigured: Boolean(process.env.APPLE_CLIENT_ID),
+      paystackConfigured: Boolean(process.env.PAYSTACK_SECRET_KEY),
+      flutterwaveConfigured: Boolean(process.env.FLUTTERWAVE_SECRET_KEY),
+      sanityCmsConfigured: isSanityConfigured,
+    },
+  };
+
+  return NextResponse.json(payload, {
+    status: overallOperational ? 200 : 503,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    },
+  });
 }

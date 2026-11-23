@@ -55,6 +55,7 @@ function ConfirmationContent() {
   );
   const [result, setResult] = useState<VerifyPaymentResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [retryNotice, setRetryNotice] = useState<string>('');
   const [retrying, setRetrying] = useState(false);
 
   const clearedCartRef = useRef(false);
@@ -75,6 +76,7 @@ function ConfirmationContent() {
 
     setVerifyState('verifying');
     setRetrying(true);
+    setRetryNotice('');
     setErrorMessage('');
 
     try {
@@ -83,8 +85,16 @@ function ConfirmationContent() {
         : '';
       const data = await apiFetch<VerifyPaymentResponse>(
         `/payments/verify/${encodeURIComponent(reference)}${qs}`,
-        { method: 'GET', timeoutMs: 20000 },
+        {
+          method: 'GET',
+          timeoutMs: 20000,
+          cancelPreviousKey: 'payment-verify',
+          onRetryAttempt: ({ attempt, maxRetries }) => {
+            setRetryNotice(`Reconnecting to payment provider (attempt ${attempt} of ${maxRetries})...`);
+          },
+        },
       );
+      setRetryNotice('');
 
       setResult(data);
       if (data.verified && data.status === 'SUCCEEDED') {
@@ -142,7 +152,8 @@ function ConfirmationContent() {
             Verifying your payment with {resolvedProvider}...
           </h1>
           <p className="text-xs sm:text-sm text-espresso/75 max-w-md mx-auto leading-relaxed">
-            Please wait while we confirm transaction <strong>{reference}</strong> directly with the payment provider before creating your order confirmation.
+            {retryNotice ||
+              `Please wait while we confirm transaction ${reference} directly with the payment provider before creating your order confirmation.`}
           </p>
         </div>
       </main>

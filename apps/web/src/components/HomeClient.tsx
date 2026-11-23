@@ -18,6 +18,7 @@ import { ProductCard } from './ProductCard';
 import { DeliveryChecker } from './DeliveryChecker';
 import { ProgressiveImage } from './ui/ProgressiveImage';
 import { Spinner } from './ui/Spinner';
+import { SystemStatusIndicator } from './ui/SystemStatusIndicator';
 import { SAMPLE_PRODUCTS, type ProductData } from '../data/sampleProducts';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { urlFor } from '../sanity/lib/image';
@@ -613,13 +614,14 @@ export function HomeClient({
             {siteSettings?.copyrightText ||
               'GOJIFEM Global Marketplace Ltd. All rights reserved.'}
           </p>
-          <div className="flex flex-wrap justify-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-6">
             <Link href="/blog" className="hover:text-ruby transition">Journal</Link>
             <Link href="/privacy" className="hover:text-ruby transition">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-ruby transition">Terms of Service</Link>
             <Link href="/vendor-agreement" className="hover:text-ruby transition">Vendor Agreement</Link>
             <Link href="/delivery-policy" className="hover:text-ruby transition">Delivery Policy</Link>
             <Link href="/contact" className="font-semibold text-ruby hover:underline transition">Contact Us</Link>
+            <SystemStatusIndicator />
           </div>
         </div>
       </footer>
