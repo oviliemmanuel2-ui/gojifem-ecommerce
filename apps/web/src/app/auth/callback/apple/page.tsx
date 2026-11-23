@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Navbar } from '../../../../components/Navbar';
 import { apiFetch, StoredUser } from '../../../../lib/api';
 import { useMarketplace } from '../../../../context/MarketplaceContext';
+import { consumePostAuthRedirect } from '../../../../lib/authRedirect';
 
 function AppleCallbackContent() {
   const router = useRouter();
@@ -58,8 +59,14 @@ function AppleCallbackContent() {
             vendors: profile.vendors,
           },
         });
-        showToast('Signed in with Apple successfully!', 'success');
-        router.replace('/account');
+        const target = consumePostAuthRedirect(null, '/account');
+        showToast(
+          target === '/checkout'
+            ? 'Signed in with Apple! Returning you to checkout.'
+            : 'Signed in with Apple successfully!',
+          'success',
+        );
+        router.replace(target);
       } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Unable to finalize Apple Sign-In session.');

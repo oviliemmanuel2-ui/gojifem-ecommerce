@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   ShoppingBag, 
   Trash2, 
@@ -9,15 +10,16 @@ import {
   Minus, 
   Store, 
   ArrowRight, 
-  ShieldCheck, 
-  Truck, 
-  Globe2 
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
 import { useMarketplace } from '../../context/MarketplaceContext';
 import { handleImageError } from '../../lib/imageFallback';
+import { CHECKOUT_AUTH_MESSAGE, savePostAuthRedirect } from '../../lib/authRedirect';
 
 export default function CartPage() {
+  const router = useRouter();
   const { 
     cart, 
     cartByVendor, 
@@ -25,8 +27,22 @@ export default function CartPage() {
     removeFromCart, 
     clearCart, 
     formatPrice, 
-    cartSubtotalNGN 
+    cartSubtotalNGN,
+    session,
+    sessionReady,
+    showToast,
   } = useMarketplace();
+
+  const handleProceedToCheckout = () => {
+    if (!sessionReady) return;
+    if (session?.accessToken) {
+      router.push('/checkout');
+      return;
+    }
+    savePostAuthRedirect('/checkout');
+    showToast(CHECKOUT_AUTH_MESSAGE, 'info');
+    router.push('/auth/login?redirect=/checkout&reason=checkout');
+  };
 
   if (cart.length === 0) {
     return (
@@ -183,13 +199,22 @@ export default function CartPage() {
                 </span>
               </div>
 
-              <Link
-                href="/checkout"
-                className="w-full py-3.5 px-4 bg-ruby text-white rounded-xl font-bold text-sm hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-lg shadow-ruby/20"
+              <button
+                type="button"
+                onClick={handleProceedToCheckout}
+                disabled={!sessionReady}
+                className="w-full py-3.5 px-4 bg-ruby text-white rounded-xl font-bold text-sm hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-lg shadow-ruby/20 disabled:opacity-50"
               >
-                <span>Proceed to Checkout</span>
+                {!session?.accessToken && <Lock className="w-3.5 h-3.5" />}
+                <span>{!sessionReady ? 'Checking session...' : 'Proceed to Checkout'}</span>
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
+
+              {sessionReady && !session?.accessToken && (
+                <p className="mt-2.5 text-[11px] text-center text-espresso/70 leading-relaxed">
+                  You will be asked to sign in or create an account before checkout. Your cart items stay saved.
+                </p>
+              )}
 
               {/* Payment methods badge */}
               <div className="mt-6 pt-4 border-t border-rose text-center">

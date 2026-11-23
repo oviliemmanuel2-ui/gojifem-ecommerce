@@ -1,12 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   apiFetch,
   readStoredSession,
   writeStoredSession,
   StoredSession,
 } from '../lib/api';
+import { mergeCartItems } from '../lib/cartMerge';
 import type { SanitySiteSettings } from '../sanity/lib/fetch';
 
 export type SupportedCurrency = 'NGN' | 'USD' | 'GBP' | 'EUR';
@@ -56,6 +57,30 @@ interface MarketplaceContextType {
   siteSettings: SanitySiteSettings | null;
 }
 
+const GUEST_CART_KEY = 'gojifem_cart';
+const USER_CART_PREFIX = 'gojifem_cart_user_';
+
+function readCartFromStorage(key: string): CartItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as CartItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCartToStorage(key: string, items: CartItem[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(items));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 // Indicative conversion rates for customer display (authoritative billing remains NGN)
 const FX_RATES: Record<SupportedCurrency, { rate: number; symbol: string; prefix: string }> = {
   NGN: { rate: 1.0, symbol: '₦', prefix: 'NGN' },
@@ -81,6 +106,17 @@ export function MarketplaceProvider({
   const [sessionReady, setSessionReady] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  const cartRef = useRef<CartItem[]>([]);
+  const sessionRef = useRef<StoredSession | null>(null);
+
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
   const showToast = useCallback(
     (message: string, type: 'success' | 'error' | 'info' = 'info') => {
       const id = Date.now() + Math.floor(Math.random() * 1000);
@@ -92,16 +128,27 @@ export function MarketplaceProvider({
     [],
   );
 
-  // Load cart and session from localStorage on mount
+  // Load saved session & merge guest cart safely on mount
   useEffect(() => {
     try {
-      const savedCart = localStorage.getItem('gojifem_cart');
-      if (savedCart) {
-        setCart(JSON.parse(savedCart));
-      }
+      const guestItems = readCartFromStorage(GUEST_CART_KEY);
       const savedSession = readStoredSession();
-      if (savedSession) {
+
+      if (savedSession?.user?.id) {
+        const userCartKey = `${USER_CART_PREFIX}${savedSession.user.id}`;
+        const savedUserItems = readCartFromStorage(userCartKey);
+        const merged = mergeCartItems(savedUserItems, guestItems);
+        writeCartToStorage(userCartKey, merged);
+        if (guestItems.length > 0) {
+          localStorage.removeItem(GUEST_CART_KEY);
+        }
+        setCart(merged);
+        cartRef.current = merged;
         setSessionState(savedSession);
+        sessionRef.current = savedSession;
+      } else {
+        setCart(guestItems);
+        cartRef.current = guestItems;
       }
     } catch {
       // Local storage unavailable
@@ -110,17 +157,52 @@ export function MarketplaceProvider({
     }
   }, []);
 
-  // Save cart changes
+  // Persist cart changes to the appropriate owner store (guest vs authenticated user)
   useEffect(() => {
-    try {
-      localStorage.setItem('gojifem_cart', JSON.stringify(cart));
-    } catch {
-      // Ignore
-    }
-  }, [cart]);
+    if (!sessionReady) return;
+    const key = session?.user?.id ? `${USER_CART_PREFIX}${session.user.id}` : GUEST_CART_KEY;
+    writeCartToStorage(key, cart);
+  }, [cart, session?.user?.id, sessionReady]);
 
   const setSession = useCallback((next: StoredSession | null) => {
     writeStoredSession(next);
+    const prevUserId = sessionRef.current?.user?.id;
+
+    if (next?.user?.id) {
+      const userCartKey = `${USER_CART_PREFIX}${next.user.id}`;
+      const isNewLogin = prevUserId !== next.user.id;
+      const guestStored = readCartFromStorage(GUEST_CART_KEY);
+      const activeGuest = !prevUserId ? cartRef.current : [];
+      const incomingGuest = mergeCartItems(guestStored, activeGuest);
+
+      if (isNewLogin || incomingGuest.length > 0) {
+        const savedUserCart = readCartFromStorage(userCartKey);
+        const merged = mergeCartItems(savedUserCart, incomingGuest);
+        writeCartToStorage(userCartKey, merged);
+        try {
+          localStorage.removeItem(GUEST_CART_KEY);
+        } catch {
+          // Ignore
+        }
+        setCart(merged);
+        cartRef.current = merged;
+
+        if (merged.length > 0 && next.accessToken) {
+          apiFetch('/cart/merge', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${next.accessToken}` },
+            skipAuth: true,
+            body: JSON.stringify({
+              items: merged.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
+            }),
+          }).catch(() => {
+            // Non-blocking background DB sync
+          });
+        }
+      }
+    }
+
+    sessionRef.current = next;
     setSessionState(next);
   }, []);
 
@@ -131,7 +213,15 @@ export function MarketplaceProvider({
       // Proceed with clearing client session even if network call fails
     }
     writeStoredSession(null);
+    sessionRef.current = null;
     setSessionState(null);
+    setCart([]);
+    cartRef.current = [];
+    try {
+      localStorage.removeItem(GUEST_CART_KEY);
+    } catch {
+      // Ignore
+    }
     showToast('You have signed out securely.', 'info');
   }, [showToast]);
 

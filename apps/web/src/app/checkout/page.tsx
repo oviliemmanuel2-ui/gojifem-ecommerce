@@ -20,10 +20,22 @@ import {
 import { Navbar } from '../../components/Navbar';
 import { useMarketplace } from '../../context/MarketplaceContext';
 import { apiFetch } from '../../lib/api';
+import { CHECKOUT_AUTH_MESSAGE, savePostAuthRedirect } from '../../lib/authRedirect';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, cartByVendor, cartSubtotalNGN, currency, formatPrice, clearCart, session, showToast } = useMarketplace();
+  const {
+    cart,
+    cartByVendor,
+    cartSubtotalNGN,
+    currency,
+    formatPrice,
+    clearCart,
+    session,
+    sessionReady,
+    setSession,
+    showToast,
+  } = useMarketplace();
 
   // Contact & Shipping Address
   const [firstName, setFirstName] = useState(session?.user?.firstName || '');
@@ -46,13 +58,49 @@ export default function CheckoutPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!sessionReady) return;
+    if (!session?.accessToken) {
+      savePostAuthRedirect('/checkout');
+      showToast(CHECKOUT_AUTH_MESSAGE, 'info');
+      router.replace('/auth/login?redirect=/checkout&reason=checkout');
+      return;
+    }
     if (session?.user) {
       setFirstName((prev) => prev || session.user.firstName || '');
       setLastName((prev) => prev || session.user.lastName || '');
       setEmail((prev) => prev || session.user.email || '');
       setPhone((prev) => prev || session.user.phone || '');
     }
-  }, [session]);
+  }, [session, sessionReady, router, showToast]);
+
+  if (!sessionReady || !session?.accessToken) {
+    return (
+      <div className="min-h-screen flex flex-col bg-ivory text-espresso">
+        <Navbar />
+        <main className="max-w-md mx-auto px-4 py-24 text-center flex-1 flex flex-col items-center justify-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-rose text-ruby flex items-center justify-center">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h1 className="text-xl font-serif font-bold text-espresso">
+            {!sessionReady ? 'Verifying your session...' : 'Authentication Required for Checkout'}
+          </h1>
+          <p className="text-xs text-espresso/75 leading-relaxed">
+            {!sessionReady
+              ? 'Please wait while we verify your account and restore your shopping bag.'
+              : CHECKOUT_AUTH_MESSAGE}
+          </p>
+          {sessionReady && (
+            <Link
+              href="/auth/login?redirect=/checkout&reason=checkout"
+              className="mt-2 px-6 py-2.5 bg-ruby text-white rounded-xl text-xs font-bold hover:bg-ruby-hover transition shadow-sm"
+            >
+              Sign In or Create Account
+            </Link>
+          )}
+        </main>
+      </div>
+    );
+  }
 
   if (cart.length === 0) {
     return (
@@ -80,22 +128,45 @@ export default function CheckoutPage() {
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!session?.accessToken) {
+      savePostAuthRedirect('/checkout');
+      showToast(CHECKOUT_AUTH_MESSAGE, 'info');
+      router.replace('/auth/login?redirect=/checkout&reason=checkout');
+      return;
+    }
+
     setProcessing(true);
     setCheckoutError(null);
 
     try {
-      const orderNumber = `GOJI-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
       const paymentInit = await apiFetch<{
+        orderNumber: string;
         authorizationUrl?: string;
         reference?: string;
-      }>('/payments/initialize', {
+      }>('/checkout/session', {
         method: 'POST',
         body: JSON.stringify({
-          orderId: `ord_${Date.now()}`,
-          orderNumber,
-          customerEmail: email.trim(),
-          customerName: `${firstName.trim()} ${lastName.trim()}`.trim(),
-          amountMinor: grandTotalNGN,
+          items: cart.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            title: item.title,
+            variantTitle: item.variantTitle,
+            priceMinorNGN: item.priceMinorNGN,
+            quantity: item.quantity,
+            vendorId: item.vendorId,
+          })),
+          shippingAddress: {
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(),
+            phone: phone.trim(),
+            countryCode: shippingCountry,
+            stateOrRegion: stateRegion,
+            city: city.trim(),
+            streetAddress: streetAddress.trim(),
+          },
+          billingCountryCode: billingCountry,
+          paymentMethod,
           currency: currency === 'NGN' ? 'NGN' : provider === 'FLUTTERWAVE' ? currency : 'NGN',
           provider,
         }),
@@ -112,6 +183,7 @@ export default function CheckoutPage() {
         return;
       }
 
+      const orderNumber = paymentInit.orderNumber || `GOJI-${new Date().getFullYear()}-${Date.now()}`;
       const refQuery = paymentInit?.reference ? `&reference=${encodeURIComponent(paymentInit.reference)}` : '';
       showToast(`Order ${orderNumber} initialized with ${provider}.`, 'success');
       router.push(`/checkout/confirmation?orderNumber=${orderNumber}${refQuery}`);
@@ -120,6 +192,13 @@ export default function CheckoutPage() {
         err instanceof Error
           ? err.message
           : 'Unable to initialize checkout payment. Please review your details and try again.';
+      if (message.toLowerCase().includes('sign in') || message.toLowerCase().includes('unauthorized')) {
+        setSession(null);
+        savePostAuthRedirect('/checkout');
+        showToast(CHECKOUT_AUTH_MESSAGE, 'info');
+        router.replace('/auth/login?redirect=/checkout&reason=checkout');
+        return;
+      }
       setCheckoutError(message);
       showToast(message, 'error');
     } finally {

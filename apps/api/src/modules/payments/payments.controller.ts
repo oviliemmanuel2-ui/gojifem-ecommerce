@@ -1,8 +1,9 @@
-import { Controller, Post, Get, Body, Param, Query, Headers } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
+import { Controller, Post, Get, Body, Param, Query, Headers, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiProperty, ApiBearerAuth } from '@nestjs/swagger';
 import { IsEmail, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { CurrencyCode, PaymentProviderName } from '@gojifem/types';
 import { PaymentsService } from './payments.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 export class InitializePaymentDto {
   @ApiProperty()
@@ -42,9 +43,11 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('initialize')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Initialize checkout payment session (Paystack/Flutterwave)',
-    description: 'Supports local Nigerian channels and international cards (Visa, Mastercard, Amex).',
+    description: 'Requires authentication. Supports local Nigerian channels and international cards.',
   })
   async initialize(@Body() body: InitializePaymentDto) {
     const webUrl = (process.env.WEB_URL || 'http://localhost:3000').split(',')[0].trim().replace(/\/$/, '');
@@ -66,6 +69,8 @@ export class PaymentsController {
   }
 
   @Get('verify/:reference')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify payment status with provider and settle to ledger' })
   async verify(
     @Param('reference') reference: string,

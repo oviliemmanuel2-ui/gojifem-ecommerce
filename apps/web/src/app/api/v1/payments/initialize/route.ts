@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CHECKOUT_AUTH_MESSAGE } from '../../../../../lib/authRedirect';
+import { authenticateRequest } from '../../../../../lib/server/jwt';
 import { resolveRequestOrigin } from '../../../../../lib/server/oauth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const authUser = authenticateRequest(req);
+  if (!authUser) {
+    return NextResponse.json(
+      { message: CHECKOUT_AUTH_MESSAGE, code: 'AUTH_REQUIRED' },
+      { status: 401 },
+    );
+  }
+
   try {
     const body = (await req.json()) as {
       orderId?: string;
@@ -17,7 +27,7 @@ export async function POST(req: NextRequest) {
     };
 
     const orderNumber = body.orderNumber || `GOJI-${Date.now()}`;
-    const customerEmail = body.customerEmail?.trim() || '';
+    const customerEmail = body.customerEmail?.trim() || authUser.email;
     const amountMinor = Math.round(Number(body.amountMinor || 0));
     const currency = (body.currency || 'NGN').toUpperCase();
     const provider = body.provider === 'FLUTTERWAVE' ? 'FLUTTERWAVE' : 'PAYSTACK';
@@ -60,6 +70,10 @@ export async function POST(req: NextRequest) {
             email: customerEmail,
             name: body.customerName || customerEmail,
           },
+          meta: {
+            userId: authUser.sub,
+            orderNumber,
+          },
           customizations: {
             title: 'GOJIFEM Global Marketplace',
             description: `Payment for order ${orderNumber}`,
@@ -86,7 +100,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Paystack
     const paystackKey = process.env.PAYSTACK_SECRET_KEY;
     if (!paystackKey || paystackKey.includes('xxxx')) {
       return NextResponse.json(
@@ -111,6 +124,7 @@ export async function POST(req: NextRequest) {
         reference,
         callback_url: callbackUrl,
         metadata: {
+          userId: authUser.sub,
           orderId: body.orderId,
           orderNumber,
           customerName: body.customerName,
