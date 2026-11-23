@@ -8,6 +8,7 @@
     "apps/*"
   ],
   "scripts": {
+    "postinstall": "prisma generate --schema=packages/database/prisma/schema.prisma",
     "build": "npm run --workspaces --if-present build",
     "lint": "npm run --workspaces --if-present lint",
     "test": "npm run --workspaces --if-present test",

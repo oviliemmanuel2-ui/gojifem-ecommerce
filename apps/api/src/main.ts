@@ -13,8 +13,23 @@ async function bootstrap() {
     .map((o) => o.trim().replace(/\/$/, ''))
     .filter(Boolean);
 
+  const allowVercelPreviews = process.env.CORS_ALLOW_VERCEL_PREVIEWS === 'true';
+
   app.enableCors({
-    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin) return callback(null, true);
+      const normalized = origin.replace(/\/$/, '');
+      if (
+        allowedOrigins.includes(normalized) ||
+        (allowVercelPreviews && /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(normalized))
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+    },
     credentials: true,
   });
 

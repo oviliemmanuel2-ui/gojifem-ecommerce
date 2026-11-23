@@ -19,7 +19,12 @@ export function SocialAuthButtons({ mode, onError }: SocialAuthButtonsProps) {
     if (onError) onError('');
 
     try {
-      const data = await apiFetch<{ url: string }>(`/auth/${provider}/url?intent=${mode}`, {
+      const params = new URLSearchParams({ intent: mode });
+      if (provider === 'google' && typeof window !== 'undefined') {
+        params.set('redirectUri', `${window.location.origin}/auth/callback/google`);
+      }
+
+      const data = await apiFetch<{ url: string }>(`/auth/${provider}/url?${params.toString()}`, {
         method: 'GET',
         skipAuth: true,
       });

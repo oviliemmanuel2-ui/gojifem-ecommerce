@@ -270,7 +270,15 @@ export class AuthService {
   // ------------------------------------------------------------------
   // OFFICIAL GOOGLE OAUTH 2.0
   // ------------------------------------------------------------------
-  async getGoogleAuthUrl(intent: string = 'login') {
+  private getAccessSecret(): string {
+    return (
+      process.env.JWT_SECRET ||
+      process.env.JWT_ACCESS_SECRET ||
+      'super_secret_jwt_key_at_least_32_chars_long'
+    );
+  }
+
+  async getGoogleAuthUrl(intent: string = 'login', explicitRedirectUri?: string) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
       throw new ServiceUnavailableException(
@@ -279,12 +287,14 @@ export class AuthService {
     }
 
     const redirectUri =
-      process.env.GOOGLE_REDIRECT_URI || `${this.getWebUrl()}/auth/callback/google`;
+      explicitRedirectUri ||
+      process.env.GOOGLE_REDIRECT_URI ||
+      `${this.getWebUrl()}/auth/callback/google`;
 
     const state = await this.jwtService.signAsync(
       { provider: 'google', intent, nonce: crypto.randomBytes(12).toString('hex') },
       {
-        secret: process.env.JWT_SECRET || 'super_secret_jwt_key_at_least_32_chars_long',
+        secret: this.getAccessSecret(),
         expiresIn: '10m',
       },
     );
@@ -388,7 +398,7 @@ export class AuthService {
     const state = await this.jwtService.signAsync(
       { provider: 'apple', intent, nonce: crypto.randomBytes(12).toString('hex') },
       {
-        secret: process.env.JWT_SECRET || 'super_secret_jwt_key_at_least_32_chars_long',
+        secret: this.getAccessSecret(),
         expiresIn: '10m',
       },
     );
@@ -878,7 +888,7 @@ export class AuthService {
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_SECRET || 'super_secret_jwt_key_at_least_32_chars_long',
+        secret: this.getAccessSecret(),
         expiresIn: '1h',
       }),
       this.jwtService.signAsync(payload, {

@@ -57,8 +57,11 @@ export class AuthController {
 
   @Get('google/url')
   @ApiOperation({ summary: 'Get official Google OAuth 2.0 authorization URL' })
-  async getGoogleUrl(@Query('intent') intent?: string) {
-    return this.authService.getGoogleAuthUrl(intent);
+  async getGoogleUrl(
+    @Query('intent') intent?: string,
+    @Query('redirectUri') redirectUri?: string,
+  ) {
+    return this.authService.getGoogleAuthUrl(intent, redirectUri);
   }
 
   @Post('google/callback')
