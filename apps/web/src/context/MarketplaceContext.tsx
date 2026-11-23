@@ -7,6 +7,7 @@ import {
   writeStoredSession,
   StoredSession,
 } from '../lib/api';
+import type { SanitySiteSettings } from '../sanity/lib/fetch';
 
 export type SupportedCurrency = 'NGN' | 'USD' | 'GBP' | 'EUR';
 
@@ -52,6 +53,7 @@ interface MarketplaceContextType {
   setSession: (next: StoredSession | null) => void;
   logout: () => Promise<void>;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  siteSettings: SanitySiteSettings | null;
 }
 
 // Indicative conversion rates for customer display (authoritative billing remains NGN)
@@ -64,7 +66,13 @@ const FX_RATES: Record<SupportedCurrency, { rate: number; symbol: string; prefix
 
 const MarketplaceContext = createContext<MarketplaceContextType | undefined>(undefined);
 
-export function MarketplaceProvider({ children }: { children: React.ReactNode }) {
+export function MarketplaceProvider({
+  children,
+  initialSiteSettings = null,
+}: {
+  children: React.ReactNode;
+  initialSiteSettings?: SanitySiteSettings | null;
+}) {
   const [currency, setCurrency] = useState<SupportedCurrency>('NGN');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -218,6 +226,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         setSession,
         logout,
         showToast,
+        siteSettings: initialSiteSettings,
       }}
     >
       {children}

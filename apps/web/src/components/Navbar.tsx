@@ -15,8 +15,11 @@ import {
   LogOut,
   ChevronDown,
   MessageSquare,
+  BookOpen,
 } from 'lucide-react';
 import { useMarketplace, SupportedCurrency } from '../context/MarketplaceContext';
+import { urlFor } from '../sanity/lib/image';
+import { handleImageError } from '../lib/imageFallback';
 
 export function Navbar() {
   const router = useRouter();
@@ -28,10 +31,18 @@ export function Navbar() {
     setSearchQuery,
     session,
     logout,
+    siteSettings,
   } = useMarketplace();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const brandName = siteSettings?.siteName || 'GOJIFEM';
+  const brandTagline = siteSettings?.tagline || 'Global Marketplace';
+  const logoUrl = urlFor(siteSettings?.logo, 160);
+  const announcement =
+    siteSettings?.announcementBanner ||
+    'Worldwide & Local Deliveries: Buy all kinds of products locally or from abroad with seamless Visa, Mastercard, and Verve payments.';
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,9 +76,7 @@ export function Navbar() {
       {/* Top Banner */}
       <div className="bg-espresso text-ivory text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2 border-b border-espresso-muted">
         <Globe2 className="w-3.5 h-3.5 text-gold shrink-0" />
-        <span>
-          <strong className="text-gold">Worldwide &amp; Local Deliveries:</strong> Buy all kinds of products locally or from abroad with seamless Visa, Mastercard, and Verve payments.
-        </span>
+        <span>{announcement}</span>
       </div>
 
       {/* Main Navbar */}
@@ -75,16 +84,27 @@ export function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo with Shopping Cart next to GOJIFEM */}
           <Link href="/" className="flex items-center gap-3 group shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-ruby flex items-center justify-center text-white font-extrabold text-xl shadow-md ring-2 ring-gold/40 group-hover:bg-ruby-hover transition">
-              G
-            </div>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={siteSettings?.logo?.alt || brandName}
+                onError={handleImageError}
+                className="w-10 h-10 rounded-xl object-cover shadow-md ring-2 ring-gold/40"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-ruby flex items-center justify-center text-white font-extrabold text-xl shadow-md ring-2 ring-gold/40 group-hover:bg-ruby-hover transition">
+                {brandName.charAt(0).toUpperCase()}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xl tracking-tight text-espresso font-serif">GOJIFEM</span>
+                <span className="font-extrabold text-xl tracking-tight text-espresso font-serif">
+                  {brandName}
+                </span>
                 <ShoppingCart className="w-5 h-5 text-ruby" />
               </div>
               <span className="text-[10px] block font-bold text-gold uppercase tracking-wider -mt-0.5">
-                Global Marketplace
+                {brandTagline}
               </span>
             </div>
           </Link>
@@ -126,6 +146,15 @@ export function Navbar() {
               </select>
             </div>
 
+            {/* Journal / Blog Link */}
+            <Link
+              href="/blog"
+              className="hidden lg:flex items-center gap-1.5 text-xs font-semibold text-espresso hover:text-ruby transition px-2 py-1.5"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-ruby" />
+              <span>Journal</span>
+            </Link>
+
             {/* Contact Us Link */}
             <Link
               href="/contact"
@@ -141,7 +170,7 @@ export function Navbar() {
               className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-espresso hover:text-ruby border border-rose rounded-lg px-3 py-1.5 hover:border-ruby/40 hover:bg-rose/30 transition"
             >
               <Store className="w-4 h-4 text-ruby" />
-              <span>Sell on GOJIFEM</span>
+              <span>Sell on {brandName}</span>
             </Link>
 
             {/* Authenticated User Dropdown or Sign In Link */}
@@ -253,11 +282,18 @@ export function Navbar() {
                 Browse Marketplace
               </Link>
               <Link
+                href="/blog"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl bg-white border border-rose text-espresso hover:text-ruby"
+              >
+                Journal &amp; Articles
+              </Link>
+              <Link
                 href="/vendor/apply"
                 onClick={() => setMobileMenuOpen(false)}
                 className="px-3 py-2 rounded-xl bg-white border border-rose text-espresso hover:text-ruby"
               >
-                Sell on GOJIFEM
+                Sell on {brandName}
               </Link>
               <Link
                 href="/contact"

@@ -8,7 +8,7 @@ import { apiFetch } from '../../lib/api';
 import { useMarketplace } from '../../context/MarketplaceContext';
 
 export default function ContactPage() {
-  const { session, showToast } = useMarketplace();
+  const { session, showToast, siteSettings } = useMarketplace();
   const [name, setName] = useState(
     session?.user?.firstName
       ? `${session.user.firstName} ${session.user.lastName || ''}`.trim()
@@ -89,7 +89,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <strong className="block text-espresso">Customer &amp; Vendor Support</strong>
-                  <span className="text-espresso/75">support@gojifem.com</span>
+                  <span className="text-espresso/75">{siteSettings?.supportEmail || 'support@gojifem.com'}</span>
                 </div>
               </div>
 
@@ -99,7 +99,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <strong className="block text-espresso">Operations Dispatch Line</strong>
-                  <span className="text-espresso/75">+234 (0) 800 GOJIFEM</span>
+                  <span className="text-espresso/75">{siteSettings?.supportPhone || '+234 (0) 800 GOJIFEM'}</span>
                 </div>
               </div>
 
@@ -109,7 +109,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <strong className="block text-espresso">Regional Hub</strong>
-                  <span className="text-espresso/75">Victoria Island, Lagos, Nigeria (Worldwide Fulfillment)</span>
+                  <span className="text-espresso/75">{siteSettings?.regionalHub || 'Victoria Island, Lagos, Nigeria (Worldwide Fulfillment)'}</span>
                 </div>
               </div>
             </div>
