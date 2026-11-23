@@ -1,23 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   ShieldCheck, 
   CreditCard, 
-  Truck, 
   MapPin, 
-  User, 
-  Mail, 
-  Phone, 
   CheckCircle2, 
-  ArrowRight,
   Store,
   Globe2,
   Lock
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
+import { CheckoutProgressSteps } from '../../components/ui/CheckoutProgressSteps';
+import { CheckoutSkeleton } from '../../components/ui/Skeleton';
+import { Spinner } from '../../components/ui/Spinner';
+import { ErrorRetryBanner } from '../../components/ui/ErrorRetryBanner';
 import { useMarketplace } from '../../context/MarketplaceContext';
 import { apiFetch } from '../../lib/api';
 import { CHECKOUT_AUTH_MESSAGE, savePostAuthRedirect } from '../../lib/authRedirect';
@@ -30,7 +29,6 @@ export default function CheckoutPage() {
     cartSubtotalNGN,
     currency,
     formatPrice,
-    clearCart,
     session,
     sessionReady,
     setSession,
@@ -56,6 +54,7 @@ export default function CheckoutPage() {
   const [provider, setProvider] = useState<'PAYSTACK' | 'FLUTTERWAVE'>('PAYSTACK');
   const [processing, setProcessing] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!sessionReady) return;
@@ -73,7 +72,11 @@ export default function CheckoutPage() {
     }
   }, [session, sessionReady, router, showToast]);
 
-  if (!sessionReady || !session?.accessToken) {
+  if (!sessionReady) {
+    return <CheckoutSkeleton message="Preparing your checkout..." />;
+  }
+
+  if (!session?.accessToken) {
     return (
       <div className="min-h-screen flex flex-col bg-ivory text-espresso">
         <Navbar />
@@ -82,21 +85,17 @@ export default function CheckoutPage() {
             <Lock className="w-6 h-6" />
           </div>
           <h1 className="text-xl font-serif font-bold text-espresso">
-            {!sessionReady ? 'Verifying your session...' : 'Authentication Required for Checkout'}
+            Authentication Required for Checkout
           </h1>
           <p className="text-xs text-espresso/75 leading-relaxed">
-            {!sessionReady
-              ? 'Please wait while we verify your account and restore your shopping bag.'
-              : CHECKOUT_AUTH_MESSAGE}
+            {CHECKOUT_AUTH_MESSAGE}
           </p>
-          {sessionReady && (
-            <Link
-              href="/auth/login?redirect=/checkout&reason=checkout"
-              className="mt-2 px-6 py-2.5 bg-ruby text-white rounded-xl text-xs font-bold hover:bg-ruby-hover transition shadow-sm"
-            >
-              Sign In or Create Account
-            </Link>
-          )}
+          <Link
+            href="/auth/login?redirect=/checkout&reason=checkout"
+            className="mt-2 px-6 py-2.5 bg-ruby text-white rounded-xl text-xs font-bold hover:bg-ruby-hover transition shadow-sm"
+          >
+            Sign In or Create Account
+          </Link>
         </main>
       </div>
     );
@@ -126,8 +125,10 @@ export default function CheckoutPage() {
   const totalShippingFeeNGN = shippingFeePerVendor * vendorCount;
   const grandTotalNGN = cartSubtotalNGN + totalShippingFeeNGN;
 
-  const handlePay = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePay = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (submittingRef.current) return;
+
     if (!session?.accessToken) {
       savePostAuthRedirect('/checkout');
       showToast(CHECKOUT_AUTH_MESSAGE, 'info');
@@ -135,6 +136,7 @@ export default function CheckoutPage() {
       return;
     }
 
+    submittingRef.current = true;
     setProcessing(true);
     setCheckoutError(null);
 
@@ -145,6 +147,7 @@ export default function CheckoutPage() {
         reference?: string;
       }>('/checkout/session', {
         method: 'POST',
+        timeoutMs: 20000,
         body: JSON.stringify({
           items: cart.map((item) => ({
             productId: item.productId,
@@ -172,21 +175,22 @@ export default function CheckoutPage() {
         }),
       });
 
-      clearCart();
-      if (
-        paymentInit?.authorizationUrl &&
-        /^https?:\/\//i.test(paymentInit.authorizationUrl) &&
-        !paymentInit.authorizationUrl.includes('sandbox.paystack.co') &&
-        !paymentInit.authorizationUrl.includes('checkout.flutterwave.com/v3/hosted/pay/mock')
-      ) {
-        window.location.href = paymentInit.authorizationUrl;
-        return;
+      const authUrl = paymentInit?.authorizationUrl;
+      const isValidProviderRedirect =
+        Boolean(authUrl) &&
+        typeof authUrl === 'string' &&
+        /^https?:\/\//i.test(authUrl) &&
+        !authUrl.includes('sandbox.paystack.co') &&
+        !authUrl.includes('checkout.flutterwave.com/v3/hosted/pay/mock');
+
+      if (!isValidProviderRedirect || !authUrl) {
+        throw new Error(
+          'Payment provider did not return a valid checkout URL. Your card was not charged and your cart remains saved.',
+        );
       }
 
-      const orderNumber = paymentInit.orderNumber || `GOJI-${new Date().getFullYear()}-${Date.now()}`;
-      const refQuery = paymentInit?.reference ? `&reference=${encodeURIComponent(paymentInit.reference)}` : '';
-      showToast(`Order ${orderNumber} initialized with ${provider}.`, 'success');
-      router.push(`/checkout/confirmation?orderNumber=${orderNumber}${refQuery}`);
+      // Redirect to the live payment provider; cart is only cleared once /checkout/confirmation verifies payment success.
+      window.location.href = authUrl;
     } catch (err: unknown) {
       const message =
         err instanceof Error
@@ -201,7 +205,7 @@ export default function CheckoutPage() {
       }
       setCheckoutError(message);
       showToast(message, 'error');
-    } finally {
+      submittingRef.current = false;
       setProcessing(false);
     }
   };
@@ -211,6 +215,8 @@ export default function CheckoutPage() {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        <CheckoutProgressSteps currentStep={2} className="mb-6" />
+
         {/* Breadcrumb / Title */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-espresso">Secure Checkout</h1>
@@ -477,9 +483,13 @@ export default function CheckoutPage() {
               )}
 
               {checkoutError && (
-                <div className="p-3 rounded-xl bg-rose/50 border border-ruby/30 text-xs text-ruby font-semibold">
-                  {checkoutError}
-                </div>
+                <ErrorRetryBanner
+                  title="Unable to initialize payment"
+                  message={checkoutError}
+                  onRetry={() => handlePay()}
+                  retryLabel="Retry Payment"
+                  retrying={processing}
+                />
               )}
             </div>
           </div>
@@ -533,11 +543,32 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={processing}
-                className="w-full py-3.5 px-4 bg-ruby text-white rounded-xl font-bold text-xs hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-lg shadow-ruby/20 disabled:opacity-50 mt-2"
+                className="w-full py-3.5 px-4 bg-ruby text-white rounded-xl font-bold text-xs hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-lg shadow-ruby/20 disabled:opacity-60 mt-2"
               >
-                <Lock className="w-3.5 h-3.5" />
-                <span>{processing ? 'Connecting Gateway...' : `Authorize Payment (${formatPrice(grandTotalNGN)})`}</span>
+                {processing ? (
+                  <>
+                    <Spinner size="xs" tone="ivory" label="Processing payment..." />
+                    <span>
+                      Processing payment with {provider === 'FLUTTERWAVE' ? 'Flutterwave' : 'Paystack'}...
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>{`Authorize Payment (${formatPrice(grandTotalNGN)})`}</span>
+                  </>
+                )}
               </button>
+
+              {processing && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="text-[11px] text-center text-espresso/75 font-semibold bg-rose/30 border border-rose rounded-xl p-2.5"
+                >
+                  Connecting to payment provider... Please do not refresh or close this page.
+                </p>
+              )}
             </div>
 
             {/* Escrow Guarantee */}

@@ -27,6 +27,7 @@ export function Navbar() {
     currency,
     setCurrency,
     totalItems,
+    cartPulseKey,
     searchQuery,
     setSearchQuery,
     session,
@@ -232,11 +233,22 @@ export function Navbar() {
             {/* Shopping Cart Button */}
             <Link
               href="/cart"
+              aria-label={`Shopping cart with ${totalItems} item${totalItems === 1 ? '' : 's'}`}
               className="flex items-center gap-2 bg-ruby text-white text-xs font-semibold px-3.5 py-2 rounded-xl hover:bg-ruby-hover transition shadow-sm"
             >
-              <ShoppingBag className="w-4 h-4" />
+              <span
+                key={`icon-${cartPulseKey}`}
+                className={cartPulseKey > 0 ? 'animate-cart-bump inline-flex' : 'inline-flex'}
+              >
+                <ShoppingBag className="w-4 h-4" />
+              </span>
               <span className="hidden sm:inline">Cart</span>
-              <span className="bg-gold text-espresso rounded-full px-1.5 py-0.2 text-[10px] font-extrabold">
+              <span
+                key={`badge-${cartPulseKey}`}
+                className={`bg-gold text-espresso rounded-full px-1.5 py-0.2 text-[10px] font-extrabold ${
+                  cartPulseKey > 0 ? 'animate-cart-bump' : ''
+                }`}
+              >
                 {totalItems}
               </span>
             </Link>

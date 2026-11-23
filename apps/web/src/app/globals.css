@@ -13,3 +13,79 @@ body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
 }
+
+@keyframes gojifem-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes gojifem-cart-bump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.14);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes gojifem-toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gojifem-route-bar {
+  0% {
+    transform: translateX(-60%);
+  }
+  100% {
+    transform: translateX(160%);
+  }
+}
+
+.gojifem-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(243, 228, 230, 0.45) 0%,
+    rgba(255, 249, 241, 0.92) 50%,
+    rgba(243, 228, 230, 0.45) 100%
+  );
+  background-size: 200% 100%;
+  animation: gojifem-shimmer 1.6s ease-in-out infinite;
+}
+
+.animate-cart-bump {
+  animation: gojifem-cart-bump 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.animate-toast-in {
+  animation: gojifem-toast-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-route-bar {
+  animation: gojifem-route-bar 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gojifem-shimmer,
+  .animate-cart-bump,
+  .animate-toast-in,
+  .animate-route-bar {
+    animation: none;
+  }
+}

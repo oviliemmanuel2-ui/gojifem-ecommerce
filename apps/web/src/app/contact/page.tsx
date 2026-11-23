@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { Mail, Phone, MapPin, Send, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
+import { Spinner } from '../../components/ui/Spinner';
+import { ErrorRetryBanner } from '../../components/ui/ErrorRetryBanner';
 import { apiFetch } from '../../lib/api';
 import { useMarketplace } from '../../context/MarketplaceContext';
 
@@ -21,9 +23,11 @@ export default function ContactPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     setError(null);
 
     if (message.trim().length < 10) {
@@ -31,6 +35,7 @@ export default function ContactPage() {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const res = await apiFetch<{ success: boolean; id: string; message: string }>('/contact', {
@@ -52,6 +57,7 @@ export default function ContactPage() {
       setError(msg);
       showToast(msg, 'error');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -138,11 +144,7 @@ export default function ContactPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <h2 className="text-lg font-serif font-bold text-espresso mb-2">Send Us a Message</h2>
 
-                {error && (
-                  <div className="p-3 rounded-xl bg-rose/50 border border-ruby/30 text-xs text-ruby font-semibold">
-                    {error}
-                  </div>
-                )}
+                {error && <ErrorRetryBanner message={error} />}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -212,10 +214,19 @@ export default function ContactPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-3 bg-ruby text-white rounded-xl font-bold text-xs hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-md shadow-ruby/20 disabled:opacity-50"
+                  className="w-full py-3 bg-ruby text-white rounded-xl font-bold text-xs hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-md shadow-ruby/20 disabled:opacity-60"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{submitting ? 'Submitting Inquiry...' : 'Submit Message'}</span>
+                  {submitting ? (
+                    <>
+                      <Spinner size="xs" tone="ivory" label="Sending your message..." />
+                      <span>Sending your message...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Submit Message</span>
+                    </>
+                  )}
                 </button>
               </form>
             )}

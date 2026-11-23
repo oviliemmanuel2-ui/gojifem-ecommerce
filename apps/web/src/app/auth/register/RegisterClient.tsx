@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { User, Mail, Phone, Lock, ArrowRight, ShoppingBag } from 'lucide-react';
 import { Navbar } from '../../../components/Navbar';
 import { SocialAuthButtons } from '../../../components/SocialAuthButtons';
+import { Spinner } from '../../../components/ui/Spinner';
+import { ErrorRetryBanner } from '../../../components/ui/ErrorRetryBanner';
 import { apiFetch, StoredSession } from '../../../lib/api';
 import { useMarketplace } from '../../../context/MarketplaceContext';
 import {
@@ -37,6 +39,7 @@ export function RegisterClient({
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (isSafeInternalPath(initialRedirect)) {
@@ -48,6 +51,7 @@ export function RegisterClient({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     if (!acceptTerms) {
       setError('Please accept the Terms of Service and Privacy Policy');
       return;
@@ -59,6 +63,7 @@ export function RegisterClient({
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -94,6 +99,7 @@ export function RegisterClient({
           : 'Registration failed. Please verify your details.',
       );
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
@@ -125,15 +131,12 @@ export function RegisterClient({
             </div>
           )}
 
-          {error && (
-            <div className="mb-4 p-3 rounded-xl bg-rose/50 border border-ruby/30 text-xs text-ruby font-semibold">
-              {error}
-            </div>
-          )}
+          {error && <ErrorRetryBanner message={error} className="mb-4" />}
 
           {/* Official Google & Apple Sign-Up */}
           <SocialAuthButtons
             mode="register"
+            disabled={loading}
             onError={(msg) => setError(msg || null)}
           />
 
@@ -156,10 +159,11 @@ export function RegisterClient({
                   <input
                     type="text"
                     required
+                    disabled={loading}
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Chidi"
-                    className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition"
+                    className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition disabled:opacity-60"
                   />
                   <User className="w-4 h-4 text-espresso/40 absolute left-3 top-3" />
                 </div>
@@ -170,10 +174,11 @@ export function RegisterClient({
                 <input
                   type="text"
                   required
+                  disabled={loading}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Okafor"
-                  className="w-full text-xs border border-rose rounded-xl px-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition"
+                  className="w-full text-xs border border-rose rounded-xl px-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition disabled:opacity-60"
                 />
               </div>
             </div>
@@ -184,10 +189,11 @@ export function RegisterClient({
                 <input
                   type="email"
                   required
+                  disabled={loading}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="chidi.okafor@example.com"
-                  className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition"
+                  className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition disabled:opacity-60"
                 />
                 <Mail className="w-4 h-4 text-espresso/40 absolute left-3 top-3" />
               </div>
@@ -201,10 +207,11 @@ export function RegisterClient({
                 <input
                   type="tel"
                   required
+                  disabled={loading}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+2348012345678"
-                  className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition"
+                  className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition disabled:opacity-60"
                 />
                 <Phone className="w-4 h-4 text-espresso/40 absolute left-3 top-3" />
               </div>
@@ -217,10 +224,11 @@ export function RegisterClient({
                   type="password"
                   required
                   minLength={8}
+                  disabled={loading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Minimum 8 characters"
-                  className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition"
+                  className="w-full text-xs border border-rose rounded-xl pl-9 pr-3 py-2.5 bg-ivory text-espresso focus:bg-white focus:outline-none focus:ring-2 focus:ring-ruby transition disabled:opacity-60"
                 />
                 <Lock className="w-4 h-4 text-espresso/40 absolute left-3 top-3" />
               </div>
@@ -251,10 +259,19 @@ export function RegisterClient({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-ruby text-white rounded-xl font-bold text-xs hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-md shadow-ruby/20 disabled:opacity-50 mt-4"
+              className="w-full py-3 bg-ruby text-white rounded-xl font-bold text-xs hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-md shadow-ruby/20 disabled:opacity-60 mt-4"
             >
-              <span>{loading ? 'Creating Account...' : 'Complete Registration'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              {loading ? (
+                <>
+                  <Spinner size="xs" tone="ivory" label="Creating your account..." />
+                  <span>Creating your account...</span>
+                </>
+              ) : (
+                <>
+                  <span>Complete Registration</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </>
+              )}
             </button>
           </form>
 

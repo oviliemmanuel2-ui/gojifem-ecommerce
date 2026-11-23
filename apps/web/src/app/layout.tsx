@@ -1,6 +1,8 @@
+import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import './globals.css';
 import { MarketplaceProvider } from '../context/MarketplaceContext';
+import { RouteProgressBar } from '../components/ui/RouteProgressBar';
 import { getSiteSettings } from '../sanity/lib/fetch';
 
 export const metadata: Metadata = {
@@ -20,6 +22,9 @@ export default async function RootLayout({
     <html lang="en">
       <body className="min-h-screen flex flex-col font-sans antialiased text-espresso bg-ivory selection:bg-rose selection:text-ruby">
         <MarketplaceProvider initialSiteSettings={siteSettings}>
+          <Suspense fallback={null}>
+            <RouteProgressBar />
+          </Suspense>
           {children}
         </MarketplaceProvider>
       </body>

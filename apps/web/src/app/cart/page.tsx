@@ -1,40 +1,77 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  ShoppingBag, 
-  Trash2, 
-  Plus, 
-  Minus, 
-  Store, 
-  ArrowRight, 
+import {
+  ShoppingBag,
+  Trash2,
+  Plus,
+  Minus,
+  Store,
+  ArrowRight,
   ShieldCheck,
   Lock,
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
+import { ProgressiveImage } from '../../components/ui/ProgressiveImage';
+import { CheckoutProgressSteps } from '../../components/ui/CheckoutProgressSteps';
+import { Spinner } from '../../components/ui/Spinner';
 import { useMarketplace } from '../../context/MarketplaceContext';
-import { handleImageError } from '../../lib/imageFallback';
 import { CHECKOUT_AUTH_MESSAGE, savePostAuthRedirect } from '../../lib/authRedirect';
 
 export default function CartPage() {
   const router = useRouter();
-  const { 
-    cart, 
-    cartByVendor, 
-    updateQuantity, 
-    removeFromCart, 
-    clearCart, 
-    formatPrice, 
+  const {
+    cart,
+    cartByVendor,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    formatPrice,
     cartSubtotalNGN,
     session,
     sessionReady,
+    syncingVariantId,
     showToast,
   } = useMarketplace();
 
+  const [preparingCheckout, setPreparingCheckout] = useState(false);
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+  const checkoutLockRef = useRef(false);
+
+  const handleQuantityChange = async (variantId: string, nextQty: number, title: string) => {
+    setUpdatingItemId(variantId);
+    try {
+      await updateQuantity(variantId, nextQty);
+      if (nextQty <= 0) {
+        showToast(`Removed "${title}" from your shopping bag.`, 'info');
+      }
+    } finally {
+      setUpdatingItemId((curr) => (curr === variantId ? null : curr));
+    }
+  };
+
+  const handleRemoveItem = async (variantId: string, title: string) => {
+    setUpdatingItemId(variantId);
+    try {
+      await removeFromCart(variantId);
+      showToast(`Removed "${title}" from your shopping bag.`, 'info');
+    } finally {
+      setUpdatingItemId((curr) => (curr === variantId ? null : curr));
+    }
+  };
+
+  const handleEmptyCart = () => {
+    clearCart();
+    showToast('Shopping cart cleared.', 'info');
+  };
+
   const handleProceedToCheckout = () => {
-    if (!sessionReady) return;
+    if (!sessionReady || checkoutLockRef.current) return;
+    checkoutLockRef.current = true;
+    setPreparingCheckout(true);
+
     if (session?.accessToken) {
       router.push('/checkout');
       return;
@@ -74,16 +111,22 @@ export default function CartPage() {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        <CheckoutProgressSteps currentStep={1} className="mb-6" />
+
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-espresso">Multi-Vendor Shopping Cart</h1>
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-espresso">
+              Multi-Vendor Shopping Cart
+            </h1>
             <p className="text-xs sm:text-sm text-espresso/70 mt-1">
-              {cart.length} item{cart.length > 1 ? 's' : ''} from {vendorCount} independent merchant{vendorCount > 1 ? 's' : ''}
+              {cart.length} item{cart.length > 1 ? 's' : ''} from {vendorCount} independent merchant
+              {vendorCount > 1 ? 's' : ''}
             </p>
           </div>
 
           <button
-            onClick={clearCart}
+            type="button"
+            onClick={handleEmptyCart}
             className="text-xs font-semibold text-ruby hover:underline transition flex items-center gap-1"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -117,53 +160,81 @@ export default function CartPage() {
 
                 {/* Items in this Vendor's Package */}
                 <div className="divide-y divide-rose/60">
-                  {vendorGroup.items.map((item) => (
-                    <div key={item.variantId} className="py-4 first:pt-0 last:pb-0 flex gap-4 items-center">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.title}
-                        onError={handleImageError}
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover bg-ivory shrink-0 border border-rose"
-                      />
-
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-serif font-bold text-espresso text-sm truncate">
-                          {item.title}
-                        </h4>
-                        {item.variantTitle && (
-                          <p className="text-xs text-espresso/60 mt-0.5">{item.variantTitle}</p>
-                        )}
-                        <div className="text-sm font-bold text-espresso mt-1">
-                          {formatPrice(item.priceMinorNGN)}
-                        </div>
-                      </div>
-
-                      {/* Quantity Controls */}
-                      <div className="flex items-center border border-rose rounded-lg bg-ivory p-1">
-                        <button
-                          onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
-                          className="p-1 hover:bg-rose rounded text-espresso"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="px-2.5 text-xs font-bold text-espresso">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
-                          className="p-1 hover:bg-rose rounded text-espresso"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={() => removeFromCart(item.variantId)}
-                        className="p-2 text-espresso/40 hover:text-ruby transition"
-                        title="Remove item"
+                  {vendorGroup.items.map((item) => {
+                    const isRowBusy =
+                      updatingItemId === item.variantId || syncingVariantId === item.variantId;
+                    return (
+                      <div
+                        key={item.variantId}
+                        className="py-4 first:pt-0 last:pb-0 flex gap-4 items-center"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                        <ProgressiveImage
+                          src={item.imageUrl}
+                          alt={item.title}
+                          containerClassName="w-16 h-16 sm:w-20 sm:h-20 rounded-xl shrink-0 border border-rose"
+                          className="w-full h-full object-cover"
+                        />
+
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-serif font-bold text-espresso text-sm truncate">
+                            {item.title}
+                          </h4>
+                          {item.variantTitle && (
+                            <p className="text-xs text-espresso/60 mt-0.5">{item.variantTitle}</p>
+                          )}
+                          <div className="text-sm font-bold text-espresso mt-1 flex items-center gap-2">
+                            <span>{formatPrice(item.priceMinorNGN)}</span>
+                            {isRowBusy && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-ruby">
+                                <Spinner size="xs" tone="ruby" label="Updating bag..." />
+                                <span>Updating...</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quantity Controls */}
+                        <div className="flex items-center border border-rose rounded-lg bg-ivory p-1">
+                          <button
+                            type="button"
+                            disabled={isRowBusy}
+                            onClick={() =>
+                              handleQuantityChange(item.variantId, item.quantity - 1, item.title)
+                            }
+                            aria-label={`Decrease quantity of ${item.title}`}
+                            className="p-1 hover:bg-rose rounded text-espresso disabled:opacity-40"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="px-2.5 text-xs font-bold text-espresso">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isRowBusy}
+                            onClick={() =>
+                              handleQuantityChange(item.variantId, item.quantity + 1, item.title)
+                            }
+                            aria-label={`Increase quantity of ${item.title}`}
+                            className="p-1 hover:bg-rose rounded text-espresso disabled:opacity-40"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={isRowBusy}
+                          onClick={() => handleRemoveItem(item.variantId, item.title)}
+                          className="p-2 text-espresso/40 hover:text-ruby transition disabled:opacity-40"
+                          title="Remove item"
+                          aria-label={`Remove ${item.title} from cart`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -185,7 +256,9 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Packages count</span>
-                  <span className="font-medium text-espresso">{vendorCount} independent shipment{vendorCount > 1 ? 's' : ''}</span>
+                  <span className="font-medium text-espresso">
+                    {vendorCount} independent shipment{vendorCount > 1 ? 's' : ''}
+                  </span>
                 </div>
               </div>
 
@@ -202,12 +275,26 @@ export default function CartPage() {
               <button
                 type="button"
                 onClick={handleProceedToCheckout}
-                disabled={!sessionReady}
-                className="w-full py-3.5 px-4 bg-ruby text-white rounded-xl font-bold text-sm hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-lg shadow-ruby/20 disabled:opacity-50"
+                disabled={!sessionReady || preparingCheckout}
+                className="w-full py-3.5 px-4 bg-ruby text-white rounded-xl font-bold text-sm hover:bg-ruby-hover transition flex items-center justify-center gap-2 shadow-lg shadow-ruby/20 disabled:opacity-60"
               >
-                {!session?.accessToken && <Lock className="w-3.5 h-3.5" />}
-                <span>{!sessionReady ? 'Checking session...' : 'Proceed to Checkout'}</span>
-                <ArrowRight className="w-4 h-4" />
+                {!sessionReady ? (
+                  <>
+                    <Spinner size="xs" tone="ivory" label="Checking session..." />
+                    <span>Checking session...</span>
+                  </>
+                ) : preparingCheckout ? (
+                  <>
+                    <Spinner size="xs" tone="ivory" label="Preparing your checkout..." />
+                    <span>Preparing your checkout...</span>
+                  </>
+                ) : (
+                  <>
+                    {!session?.accessToken && <Lock className="w-3.5 h-3.5" />}
+                    <span>Proceed to Checkout</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
 
               {sessionReady && !session?.accessToken && (
@@ -220,7 +307,7 @@ export default function CartPage() {
               <div className="mt-6 pt-4 border-t border-rose text-center">
                 <p className="text-[11px] font-bold text-espresso mb-2">Supported Payment Methods</p>
                 <div className="flex items-center justify-center gap-2 text-[10px] text-espresso/80 flex-wrap">
-                  <span className="px-2 py-0.5 border border-rose rounded bg-ivory">Visa (Local & Int'l)</span>
+                  <span className="px-2 py-0.5 border border-rose rounded bg-ivory">Visa (Local &amp; Int&apos;l)</span>
                   <span className="px-2 py-0.5 border border-rose rounded bg-ivory">Mastercard</span>
                   <span className="px-2 py-0.5 border border-rose rounded bg-ivory">Verve</span>
                   <span className="px-2 py-0.5 border border-rose rounded bg-ivory">Bank Transfer</span>

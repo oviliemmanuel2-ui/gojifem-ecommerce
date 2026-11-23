@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Star,
@@ -11,18 +11,25 @@ import {
   Minus,
   ShoppingBag,
   Store,
+  Heart,
 } from 'lucide-react';
 import { Navbar } from './Navbar';
 import { DeliveryChecker } from './DeliveryChecker';
+import { ProgressiveImage } from './ui/ProgressiveImage';
+import { Spinner } from './ui/Spinner';
 import type { ProductData } from '../data/sampleProducts';
 import { useMarketplace } from '../context/MarketplaceContext';
-import { handleImageError } from '../lib/imageFallback';
 
 export function ProductDetailClient({ product }: { product: ProductData }) {
-  const { formatPrice, addToCart, showToast } = useMarketplace();
+  const { formatPrice, addToCart, showToast, isFavorite, toggleFavorite } =
+    useMarketplace();
   const [selectedVariant, setSelectedVariant] = useState(product.variants[0]);
   const [quantity, setQuantity] = useState(1);
+  const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const addingRef = useRef(false);
+
+  const favorited = isFavorite(product.id);
 
   const images =
     product.galleryImages && product.galleryImages.length > 0
@@ -30,25 +37,51 @@ export function ProductDetailClient({ product }: { product: ProductData }) {
       : [product.imageUrl];
   const [activeImage, setActiveImage] = useState(images[0]);
 
-  const handleAddToCart = () => {
-    addToCart(
-      {
-        id: `${product.id}_${selectedVariant.id}`,
-        variantId: selectedVariant.id,
-        productId: product.id,
-        title: product.title,
-        variantTitle: selectedVariant.title,
-        priceMinorNGN: selectedVariant.priceMinorNGN,
-        imageUrl: activeImage || product.imageUrl,
-        vendorId: product.vendorId,
-        vendorName: product.vendorName,
-        vendorSlug: product.vendorSlug,
-      },
-      quantity,
-    );
-    setAdded(true);
-    showToast(`Added ${quantity}x "${product.title}" to bag`, 'success');
-    setTimeout(() => setAdded(false), 2500);
+  const handleDecreaseQty = () => {
+    setQuantity((q) => Math.max(1, q - 1));
+  };
+
+  const handleIncreaseQty = () => {
+    if (quantity >= product.stockCount) {
+      showToast(
+        `Maximum available stock reached (${product.stockCount} in stock).`,
+        'warning',
+      );
+      return;
+    }
+    setQuantity((q) => Math.min(product.stockCount, q + 1));
+  };
+
+  const handleAddToCart = async () => {
+    if (addingRef.current) return;
+    addingRef.current = true;
+    setAdding(true);
+
+    try {
+      await addToCart(
+        {
+          id: `${product.id}_${selectedVariant.id}`,
+          variantId: selectedVariant.id,
+          productId: product.id,
+          title: product.title,
+          variantTitle: selectedVariant.title,
+          priceMinorNGN: selectedVariant.priceMinorNGN,
+          imageUrl: activeImage || product.imageUrl,
+          vendorId: product.vendorId,
+          vendorName: product.vendorName,
+          vendorSlug: product.vendorSlug,
+        },
+        quantity,
+      );
+      setAdded(true);
+      showToast(`Added ${quantity}x "${product.title}" to your shopping bag.`, 'success');
+      setTimeout(() => setAdded(false), 2500);
+    } catch {
+      showToast('Unable to add item to bag right now. Please try again.', 'error');
+    } finally {
+      addingRef.current = false;
+      setAdding(false);
+    }
   };
 
   return (
@@ -71,10 +104,11 @@ export function ProductDetailClient({ product }: { product: ProductData }) {
           {/* Left Column: Image Gallery */}
           <div className="lg:col-span-6 space-y-4">
             <div className="aspect-square rounded-3xl overflow-hidden bg-white border border-rose shadow-sm relative">
-              <img
+              <ProgressiveImage
                 src={activeImage || product.imageUrl}
                 alt={product.title}
-                onError={handleImageError}
+                priority
+                containerClassName="w-full h-full"
                 className="w-full h-full object-cover"
               />
               {product.isVendorVerified && (
@@ -83,6 +117,25 @@ export function ProductDetailClient({ product }: { product: ProductData }) {
                   <span>Verified Merchant</span>
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={() => toggleFavorite(product.id, product.title)}
+                aria-pressed={favorited}
+                aria-label={
+                  favorited
+                    ? `Remove ${product.title} from favourites`
+                    : `Save ${product.title} to favourites`
+                }
+                className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-bold shadow flex items-center gap-1.5 border transition ${
+                  favorited
+                    ? 'bg-ruby text-white border-ruby'
+                    : 'bg-white/95 text-espresso border-rose hover:text-ruby'
+                }`}
+              >
+                <Heart className={`w-3.5 h-3.5 ${favorited ? 'fill-current' : ''}`} />
+                <span>{favorited ? 'Saved' : 'Save'}</span>
+              </button>
             </div>
 
             {images.length > 1 && (
@@ -92,16 +145,17 @@ export function ProductDetailClient({ product }: { product: ProductData }) {
                     type="button"
                     key={`${imgUrl}-${idx}`}
                     onClick={() => setActiveImage(imgUrl)}
+                    aria-label={`View photo ${idx + 1} of ${product.title}`}
                     className={`w-20 h-20 rounded-2xl overflow-hidden border shrink-0 transition ${
                       activeImage === imgUrl
                         ? 'border-ruby ring-2 ring-ruby/30'
                         : 'border-rose hover:border-gold'
                     }`}
                   >
-                    <img
+                    <ProgressiveImage
                       src={imgUrl}
                       alt={`${product.title} view ${idx + 1}`}
-                      onError={handleImageError}
+                      containerClassName="w-full h-full"
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -193,18 +247,22 @@ export function ProductDetailClient({ product }: { product: ProductData }) {
                 <div className="flex items-center border border-rose rounded-xl bg-ivory p-1 w-full sm:w-auto justify-between sm:justify-start">
                   <button
                     type="button"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    onClick={handleDecreaseQty}
+                    disabled={quantity <= 1 || adding}
                     aria-label="Decrease quantity"
-                    className="p-2 hover:bg-rose/60 rounded-lg transition text-espresso"
+                    className="p-2 hover:bg-rose/60 rounded-lg transition text-espresso disabled:opacity-40"
                   >
                     <Minus className="w-4 h-4" />
                   </button>
-                  <span className="px-4 text-sm font-bold text-espresso">{quantity}</span>
+                  <span className="px-4 text-sm font-bold text-espresso" aria-live="polite">
+                    {quantity}
+                  </span>
                   <button
                     type="button"
-                    onClick={() => setQuantity((q) => Math.min(product.stockCount, q + 1))}
+                    onClick={handleIncreaseQty}
+                    disabled={adding}
                     aria-label="Increase quantity"
-                    className="p-2 hover:bg-rose/60 rounded-lg transition text-espresso"
+                    className="p-2 hover:bg-rose/60 rounded-lg transition text-espresso disabled:opacity-40"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -213,14 +271,24 @@ export function ProductDetailClient({ product }: { product: ProductData }) {
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className={`flex-1 w-full py-3.5 px-6 rounded-xl font-bold text-sm transition shadow-md flex items-center justify-center gap-2 ${
+                  disabled={adding}
+                  className={`flex-1 w-full py-3.5 px-6 rounded-xl font-bold text-sm transition shadow-md flex items-center justify-center gap-2 disabled:opacity-70 ${
                     added
                       ? 'bg-ruby-dark text-white'
                       : 'bg-ruby hover:bg-ruby-hover text-white shadow-ruby/20'
                   }`}
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>{added ? 'Added to Shopping Bag ✓' : 'Add to Multi-Vendor Bag'}</span>
+                  {adding ? (
+                    <>
+                      <Spinner size="xs" tone="ivory" label="Adding to cart..." />
+                      <span>Adding to cart...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>{added ? 'Added to Shopping Bag ✓' : 'Add to Multi-Vendor Bag'}</span>
+                    </>
+                  )}
                 </button>
               </div>
 

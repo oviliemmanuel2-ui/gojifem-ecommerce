@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     const currency = (body.currency || 'NGN').toUpperCase();
     const provider = body.provider === 'FLUTTERWAVE' ? 'FLUTTERWAVE' : 'PAYSTACK';
     const origin = resolveRequestOrigin(req);
-    const callbackUrl = `${origin}/checkout/confirmation?orderNumber=${encodeURIComponent(orderNumber)}`;
+    const callbackUrl = `${origin}/checkout/confirmation?orderNumber=${encodeURIComponent(orderNumber)}&provider=${provider}`;
     const reference = `${provider === 'FLUTTERWAVE' ? 'FLW' : 'PSK'}_${orderNumber}_${Date.now()}`;
 
     if (provider === 'FLUTTERWAVE') {

@@ -1,20 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { Spinner } from './ui/Spinner';
 
 interface SocialAuthButtonsProps {
   mode: 'login' | 'register';
+  disabled?: boolean;
   onError?: (msg: string) => void;
 }
 
-export function SocialAuthButtons({ mode, onError }: SocialAuthButtonsProps) {
+export function SocialAuthButtons({
+  mode,
+  disabled = false,
+  onError,
+}: SocialAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'apple' | null>(null);
+  const inFlightRef = useRef(false);
 
   const googleLabel = mode === 'register' ? 'Sign up with Google' : 'Continue with Google';
   const appleLabel = mode === 'register' ? 'Sign up with Apple' : 'Continue with Apple';
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
+    if (disabled || inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoadingProvider(provider);
     if (onError) onError('');
 
@@ -40,51 +49,60 @@ export function SocialAuthButtons({ mode, onError }: SocialAuthButtonsProps) {
           ? err.message
           : `Failed to connect to ${provider === 'google' ? 'Google' : 'Apple'} Sign-In.`;
       if (onError) onError(message);
+      inFlightRef.current = false;
       setLoadingProvider(null);
     }
   };
+
+  const isDisabled = disabled || loadingProvider !== null;
 
   return (
     <div className="space-y-2.5">
       <button
         type="button"
         onClick={() => handleOAuth('google')}
-        disabled={loadingProvider !== null}
-        className="w-full py-2.5 px-4 bg-white border border-rose rounded-xl text-xs font-bold text-espresso hover:bg-rose/30 hover:border-gold transition flex items-center justify-center gap-2.5 shadow-sm disabled:opacity-50"
+        disabled={isDisabled}
+        className="w-full py-2.5 px-4 bg-white border border-rose rounded-xl text-xs font-bold text-espresso hover:bg-rose/30 hover:border-gold transition flex items-center justify-center gap-2.5 shadow-sm disabled:opacity-60"
       >
-        {/* Official Google G Mark */}
-        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            fill="#4285F4"
-            d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
-          />
-          <path
-            fill="#34A853"
-            d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"
-          />
-          <path
-            fill="#FBBC05"
-            d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"
-          />
-          <path
-            fill="#EA4335"
-            d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"
-          />
-        </svg>
-        <span>{loadingProvider === 'google' ? 'Redirecting to Google...' : googleLabel}</span>
+        {loadingProvider === 'google' ? (
+          <Spinner size="xs" tone="ruby" label="Connecting to Google..." />
+        ) : (
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="#4285F4"
+              d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"
+            />
+          </svg>
+        )}
+        <span>{loadingProvider === 'google' ? 'Connecting to Google...' : googleLabel}</span>
       </button>
 
       <button
         type="button"
         onClick={() => handleOAuth('apple')}
-        disabled={loadingProvider !== null}
-        className="w-full py-2.5 px-4 bg-espresso text-ivory border border-espresso rounded-xl text-xs font-bold hover:bg-espresso-muted transition flex items-center justify-center gap-2.5 shadow-sm disabled:opacity-50"
+        disabled={isDisabled}
+        className="w-full py-2.5 px-4 bg-espresso text-ivory border border-espresso rounded-xl text-xs font-bold hover:bg-espresso-muted transition flex items-center justify-center gap-2.5 shadow-sm disabled:opacity-60"
       >
-        {/* Official Apple Mark */}
-        <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43Zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45Z" />
-        </svg>
-        <span>{loadingProvider === 'apple' ? 'Redirecting to Apple...' : appleLabel}</span>
+        {loadingProvider === 'apple' ? (
+          <Spinner size="xs" tone="ivory" label="Connecting to Apple..." />
+        ) : (
+          <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43Zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45Z" />
+          </svg>
+        )}
+        <span>{loadingProvider === 'apple' ? 'Connecting to Apple...' : appleLabel}</span>
       </button>
     </div>
   );

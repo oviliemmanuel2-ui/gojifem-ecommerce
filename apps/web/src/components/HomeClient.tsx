@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useTransition } from 'react';
 import Link from 'next/link';
 import {
   ShieldCheck,
@@ -16,10 +16,11 @@ import {
 import { Navbar } from './Navbar';
 import { ProductCard } from './ProductCard';
 import { DeliveryChecker } from './DeliveryChecker';
+import { ProgressiveImage } from './ui/ProgressiveImage';
+import { Spinner } from './ui/Spinner';
 import { SAMPLE_PRODUCTS, type ProductData } from '../data/sampleProducts';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { urlFor } from '../sanity/lib/image';
-import { handleImageError } from '../lib/imageFallback';
 import type {
   SanityBlogPost,
   SanityHomePageData,
@@ -110,6 +111,7 @@ export function HomeClient({
     selectedCategory,
     setSelectedCategory,
   } = useMarketplace();
+  const [isFiltering, startFilterTransition] = useTransition();
 
   const activeProducts = cmsProducts.length > 0 ? cmsProducts : SAMPLE_PRODUCTS;
 
@@ -174,12 +176,14 @@ export function HomeClient({
   }, [activeProducts, categories, searchQuery, selectedCategory]);
 
   const handleCategoryClick = (categoryName: string) => {
-    if (selectedCategory === categoryName) {
-      setSelectedCategory(null);
-      return;
-    }
-    setSelectedCategory(categoryName);
-    if (typeof window !== 'undefined') {
+    startFilterTransition(() => {
+      if (selectedCategory === categoryName) {
+        setSelectedCategory(null);
+        return;
+      }
+      setSelectedCategory(categoryName);
+    });
+    if (selectedCategory !== categoryName && typeof window !== 'undefined') {
       const el = document.getElementById('featured-products');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
@@ -230,10 +234,11 @@ export function HomeClient({
           {/* Optional CMS Hero Feature Banner */}
           {heroBannerUrl && (
             <div className="mt-10 max-w-5xl mx-auto rounded-3xl overflow-hidden border border-rose shadow-md">
-              <img
+              <ProgressiveImage
                 src={heroBannerUrl}
                 alt={homeData?.heroBannerImage?.alt || 'GOJIFEM Featured Showcase'}
-                onError={handleImageError}
+                priority
+                containerClassName="w-full"
                 className="w-full max-h-[420px] object-cover"
               />
             </div>
@@ -302,11 +307,11 @@ export function HomeClient({
                 }`}
               >
                 {cat.imageUrl ? (
-                  <img
+                  <ProgressiveImage
                     src={cat.imageUrl}
                     alt={cat.name}
-                    onError={handleImageError}
-                    className="w-12 h-12 rounded-xl object-cover mx-auto mb-3 border border-rose group-hover:scale-105 transition"
+                    containerClassName="w-12 h-12 rounded-xl mx-auto mb-3 border border-rose"
+                    className="w-full h-full object-cover group-hover:scale-105 transition"
                   />
                 ) : (
                   <div className="text-3xl mb-3 group-hover:scale-110 transition">
@@ -345,8 +350,9 @@ export function HomeClient({
                 ? selectedCategory
                 : homeData?.featuredHeading || 'Featured Marketplace Listings'}
             </h2>
-            <p className="text-sm text-espresso/70 mt-1">
-              {homeData?.featuredSubtitle || 'Prices calculate live in NGN, USD, GBP, or EUR.'}
+            <p className="text-sm text-espresso/70 mt-1 flex items-center gap-2">
+              <span>{homeData?.featuredSubtitle || 'Prices calculate live in NGN, USD, GBP, or EUR.'}</span>
+              {isFiltering && <Spinner size="xs" tone="ruby" label="Updating listings..." />}
             </p>
           </div>
 
@@ -452,11 +458,11 @@ export function HomeClient({
                 </div>
                 {sectionImg && (
                   <div className="lg:col-span-6">
-                    <img
+                    <ProgressiveImage
                       src={sectionImg}
                       alt={section.image?.alt || section.heading}
-                      onError={handleImageError}
-                      className="w-full rounded-3xl border border-rose object-cover max-h-[360px] shadow-sm"
+                      containerClassName="w-full rounded-3xl border border-rose shadow-sm"
+                      className="w-full object-cover max-h-[360px]"
                     />
                   </div>
                 )}
@@ -522,10 +528,10 @@ export function HomeClient({
                 >
                   {postImg && (
                     <div className="aspect-[16/10] overflow-hidden bg-rose/20">
-                      <img
+                      <ProgressiveImage
                         src={postImg}
                         alt={post.mainImage?.alt || post.title}
-                        onError={handleImageError}
+                        containerClassName="w-full h-full"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>

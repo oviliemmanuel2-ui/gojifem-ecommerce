@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -15,6 +15,8 @@ import {
   Mail,
 } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
+import { Spinner } from '../../components/ui/Spinner';
+import { ErrorRetryBanner } from '../../components/ui/ErrorRetryBanner';
 import { apiFetch } from '../../lib/api';
 import { useMarketplace } from '../../context/MarketplaceContext';
 
@@ -64,49 +66,45 @@ export default function AccountPage() {
   const [newCity, setNewCity] = useState('');
   const [newStreet, setNewStreet] = useState('');
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     if (!sessionReady) return;
     if (!session?.accessToken) {
       setProfile(null);
       return;
     }
 
-    let cancelled = false;
     setLoadingProfile(true);
     setProfileError(null);
-
-    apiFetch<ProfileResponse>('/auth/me')
-      .then((res) => {
-        if (cancelled) return;
-        setProfile(res);
-        setAddresses(res.addresses || []);
-        setSession({
-          ...session,
-          user: {
-            ...session.user,
-            id: res.id,
-            email: res.email,
-            phone: res.phone,
-            emailVerified: res.emailVerified,
-            firstName: res.profile?.firstName ?? session.user.firstName,
-            lastName: res.profile?.lastName ?? session.user.lastName,
-            roles: res.roles || session.user.roles,
-          },
-        });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setProfileError(err instanceof Error ? err.message : 'Could not refresh profile from server.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingProfile(false);
+    try {
+      const res = await apiFetch<ProfileResponse>('/auth/me');
+      setProfile(res);
+      setAddresses(res.addresses || []);
+      setSession({
+        ...session,
+        user: {
+          ...session.user,
+          id: res.id,
+          email: res.email,
+          phone: res.phone,
+          emailVerified: res.emailVerified,
+          firstName: res.profile?.firstName ?? session.user.firstName,
+          lastName: res.profile?.lastName ?? session.user.lastName,
+          roles: res.roles || session.user.roles,
+        },
       });
-
-    return () => {
-      cancelled = true;
-    };
+    } catch (err: unknown) {
+      setProfileError(
+        err instanceof Error ? err.message : 'Could not refresh profile from server.',
+      );
+    } finally {
+      setLoadingProfile(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionReady, session?.accessToken]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleLogout = async () => {
     await logout();
@@ -221,9 +219,12 @@ export default function AccountPage() {
         </div>
 
         {profileError && (
-          <div className="mb-6 p-3 rounded-xl bg-rose/50 border border-ruby/30 text-xs text-ruby font-semibold">
-            {profileError}
-          </div>
+          <ErrorRetryBanner
+            message={profileError}
+            onRetry={fetchProfile}
+            retrying={loadingProfile}
+            className="mb-6"
+          />
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -276,7 +277,10 @@ export default function AccountPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
                   <h2 className="text-lg font-serif font-bold text-espresso">Personal Profile</h2>
                   {loadingProfile && (
-                    <span className="text-[11px] text-espresso/60">Refreshing from server...</span>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-espresso/70">
+                      <Spinner size="xs" tone="ruby" label="Refreshing from server..." />
+                      <span>Refreshing from server...</span>
+                    </span>
                   )}
                 </div>
 
@@ -295,9 +299,13 @@ export default function AccountPage() {
                       type="button"
                       onClick={handleResendVerification}
                       disabled={resendingVerify}
-                      className="px-3.5 py-2 bg-ruby text-white rounded-xl font-bold hover:bg-ruby-hover transition flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                      className="px-3.5 py-2 bg-ruby text-white rounded-xl font-bold hover:bg-ruby-hover transition flex items-center gap-1.5 shrink-0 disabled:opacity-60"
                     >
-                      <Mail className="w-3.5 h-3.5" />
+                      {resendingVerify ? (
+                        <Spinner size="xs" tone="ivory" label="Sending verification email..." />
+                      ) : (
+                        <Mail className="w-3.5 h-3.5" />
+                      )}
                       <span>{resendingVerify ? 'Sending...' : 'Resend Verification Email'}</span>
                     </button>
                   </div>

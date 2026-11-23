@@ -59,12 +59,24 @@ export function writeStoredSession(session: StoredSession | null): void {
 
 export async function apiFetch<T = unknown>(
   path: string,
-  options: RequestInit & { skipAuth?: boolean } = {},
+  options: RequestInit & { skipAuth?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
-  const { skipAuth, headers: customHeaders, ...rest } = options;
+  const {
+    skipAuth,
+    timeoutMs = 15000,
+    headers: customHeaders,
+    signal: callerSignal,
+    ...rest
+  } = options;
   const headers = new Headers(customHeaders || {});
   if (!headers.has('Content-Type') && rest.body && !(rest.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error(
+      'You appear to be offline. Please check your internet connection and try again.',
+    );
   }
 
   if (!skipAuth && typeof window !== 'undefined') {
@@ -74,17 +86,48 @@ export async function apiFetch<T = unknown>(
     }
   }
 
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  const forwardAbort = () => controller.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      clearTimeout(timer);
+      controller.abort();
+    } else {
+      callerSignal.addEventListener('abort', forwardAbort, { once: true });
+    }
+  }
+
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
       ...rest,
       headers,
+      signal: controller.signal,
     });
-  } catch {
+  } catch (err) {
+    if (timedOut || (err instanceof Error && err.name === 'AbortError' && timedOut)) {
+      throw new Error(
+        'The request is taking longer than expected. Please check your connection and try again.',
+      );
+    }
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('The request was cancelled before completion.');
+    }
     throw new Error(
       'Unable to reach the GOJIFEM server right now. Please check your connection or verify the API server is running.',
     );
+  } finally {
+    clearTimeout(timer);
+    if (callerSignal) {
+      callerSignal.removeEventListener('abort', forwardAbort);
+    }
   }
 
   let data: Record<string, unknown> | null = null;
