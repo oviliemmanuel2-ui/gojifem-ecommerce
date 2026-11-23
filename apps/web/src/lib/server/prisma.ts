@@ -12,7 +12,10 @@ declare global {
 export type DatabaseEnvSource =
   | 'DATABASE_URL'
   | 'POSTGRES_PRISMA_URL'
+  | 'GOJIFEM_POSTGRES_PRISMA_URL'
+  | 'DATABASE_URL_POOLED'
   | 'POSTGRES_URL'
+  | 'GOJIFEM_POSTGRES_URL'
   | 'none';
 
 export function resolveDatabaseEnv(): {
@@ -22,7 +25,10 @@ export function resolveDatabaseEnv(): {
   const candidates: Array<{ source: Exclude<DatabaseEnvSource, 'none'>; value?: string }> = [
     { source: 'DATABASE_URL', value: process.env.DATABASE_URL },
     { source: 'POSTGRES_PRISMA_URL', value: process.env.POSTGRES_PRISMA_URL },
+    { source: 'GOJIFEM_POSTGRES_PRISMA_URL', value: process.env.GOJIFEM_POSTGRES_PRISMA_URL },
+    { source: 'DATABASE_URL_POOLED', value: process.env.DATABASE_URL_POOLED },
     { source: 'POSTGRES_URL', value: process.env.POSTGRES_URL },
+    { source: 'GOJIFEM_POSTGRES_URL', value: process.env.GOJIFEM_POSTGRES_URL },
   ];
 
   for (const item of candidates) {
@@ -42,6 +48,7 @@ export function resolveDirectDatabaseUrl(): string | null {
   const candidates = [
     process.env.DIRECT_URL,
     process.env.POSTGRES_URL_NON_POOLING,
+    process.env.GOJIFEM_POSTGRES_URL_NON_POOLING,
     resolveDatabaseUrl(),
   ];
   for (const candidate of candidates) {
@@ -51,6 +58,36 @@ export function resolveDirectDatabaseUrl(): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Ensures PgBouncer / Supabase transaction-pooled URLs include `pgbouncer=true`
+ * so Prisma does not hit prepared-statement errors in serverless functions.
+ */
+export function normalizeRuntimeDatabaseUrl(url: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  const usesPooler =
+    /pooler\.supabase\.com/i.test(trimmed) ||
+    /-pooler\./i.test(trimmed) ||
+    /:6543\b/.test(trimmed);
+
+  if (!usesPooler) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!parsed.searchParams.has('pgbouncer')) {
+      parsed.searchParams.set('pgbouncer', 'true');
+    }
+    return parsed.toString();
+  } catch {
+    if (!/pgbouncer=true/i.test(trimmed)) {
+      return `${trimmed}${trimmed.includes('?') ? '&' : '?'}pgbouncer=true`;
+    }
+    return trimmed;
+  }
 }
 
 export function isLocalhostDatabaseUrl(url: string | null): boolean {
@@ -64,6 +101,7 @@ export function getPoolingHint(url: string | null): 'pooled' | 'direct' | 'uncon
   if (!url) return 'unconfigured';
   if (
     /pgbouncer=true/i.test(url) ||
+    /pooler\.supabase\.com/i.test(url) ||
     /-pooler\./i.test(url) ||
     /:6543\b/.test(url)
   ) {
@@ -77,8 +115,11 @@ export function isDatabaseConfigured(): boolean {
 }
 
 export function getPrisma(): PrismaClient {
-  const resolvedUrl = resolveDatabaseUrl();
-  if (!globalThis.vercelPrismaGlobal || globalThis.vercelPrismaUrlGlobal !== (resolvedUrl || undefined)) {
+  const resolvedUrl = normalizeRuntimeDatabaseUrl(resolveDatabaseUrl());
+  if (
+    !globalThis.vercelPrismaGlobal ||
+    globalThis.vercelPrismaUrlGlobal !== (resolvedUrl || undefined)
+  ) {
     globalThis.vercelPrismaGlobal = new PrismaClient({
       ...(resolvedUrl ? { datasources: { db: { url: resolvedUrl } } } : {}),
       log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],

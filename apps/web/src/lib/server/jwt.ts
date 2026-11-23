@@ -14,6 +14,7 @@ function getAccessSecret(): string {
   return (
     process.env.JWT_SECRET ||
     process.env.JWT_ACCESS_SECRET ||
+    process.env.GOJIFEM_SUPABASE_JWT_SECRET ||
     'super_secret_jwt_key_at_least_32_chars_long'
   );
 }
@@ -21,7 +22,9 @@ function getAccessSecret(): string {
 function getRefreshSecret(): string {
   return (
     process.env.JWT_REFRESH_SECRET ||
-    'super_secret_refresh_jwt_key_at_least_32_chars'
+    (process.env.GOJIFEM_SUPABASE_JWT_SECRET
+      ? `${process.env.GOJIFEM_SUPABASE_JWT_SECRET}:refresh`
+      : 'super_secret_refresh_jwt_key_at_least_32_chars')
   );
 }
 

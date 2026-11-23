@@ -21,17 +21,30 @@ const PRISMA_CLI_CANDIDATES = [
 const isVercel = process.env.VERCEL === '1';
 const forceMigrate = process.env.RUN_DB_MIGRATIONS === '1';
 
-const directUrl = (
-  process.env.DIRECT_URL ||
-  process.env.POSTGRES_URL_NON_POOLING ||
-  process.env.DATABASE_URL ||
-  process.env.POSTGRES_PRISMA_URL ||
-  process.env.POSTGRES_URL ||
-  ''
-).trim();
+const CANDIDATE_ENV_VARS = [
+  'DIRECT_URL',
+  'POSTGRES_URL_NON_POOLING',
+  'GOJIFEM_POSTGRES_URL_NON_POOLING',
+  'DATABASE_URL',
+  'POSTGRES_PRISMA_URL',
+  'GOJIFEM_POSTGRES_PRISMA_URL',
+  'POSTGRES_URL',
+  'GOJIFEM_POSTGRES_URL',
+];
+
+let selectedSource = null;
+let selectedUrl = '';
+for (const envName of CANDIDATE_ENV_VARS) {
+  const val = (process.env[envName] || '').trim();
+  if (val) {
+    selectedSource = envName;
+    selectedUrl = val;
+    break;
+  }
+}
 
 const isLocalhost = /^postgres(ql)?:\/\/[^/]*@(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(\/|$|\?)/i.test(
-  directUrl,
+  selectedUrl,
 );
 
 if (!isVercel && !forceMigrate) {
@@ -39,18 +52,32 @@ if (!isVercel && !forceMigrate) {
   process.exit(0);
 }
 
-if (!directUrl) {
+if (!selectedUrl) {
   console.warn(
-    '[gojifem:migrate] WARNING: No DATABASE_URL / POSTGRES_PRISMA_URL configured in Vercel Environment Variables. Skipping `prisma migrate deploy`.',
+    '[gojifem:migrate] WARNING: No PostgreSQL URL found in Vercel Environment Variables. Skipping `prisma migrate deploy`.',
   );
   process.exit(0);
 }
 
 if (isVercel && isLocalhost) {
   console.warn(
-    '[gojifem:migrate] WARNING: DATABASE_URL points to localhost on Vercel. Replace it with a cloud PostgreSQL URL so migrations and auth can connect.',
+    `[gojifem:migrate] WARNING: ${selectedSource} points to localhost on Vercel. Replace it with a cloud PostgreSQL URL so migrations and auth can connect.`,
   );
   process.exit(0);
+}
+
+// Ensure TLS sslmode=require for remote cloud databases (Supabase/Neon) if absent
+let migrationUrl = selectedUrl;
+if (!isLocalhost) {
+  try {
+    const parsed = new URL(selectedUrl);
+    if (!parsed.searchParams.has('sslmode')) {
+      parsed.searchParams.set('sslmode', 'require');
+    }
+    migrationUrl = parsed.toString();
+  } catch {
+    // Keep original string if non-standard URL format
+  }
 }
 
 const prismaCli = PRISMA_CLI_CANDIDATES.find((candidate) => fs.existsSync(candidate));
@@ -59,12 +86,12 @@ if (!prismaCli) {
   process.exit(1);
 }
 
-console.log('[gojifem:migrate] Running non-destructive `prisma migrate deploy`...');
+console.log(`[gojifem:migrate] Using ${selectedSource} for non-destructive \`prisma migrate deploy\`...`);
 execFileSync(process.execPath, [prismaCli, 'migrate', 'deploy', `--schema=${SCHEMA_PATH}`], {
   stdio: 'inherit',
   env: {
     ...process.env,
-    DATABASE_URL: directUrl,
+    DATABASE_URL: migrationUrl,
   },
 });
 console.log('[gojifem:migrate] Pending migrations verified/applied successfully.');
